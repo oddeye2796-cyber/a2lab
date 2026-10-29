@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PV-AIQ · 태양광 모듈 AI 품질예측</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('pvaiq.theme')==='light'?'light':'dark'}catch(e){document.documentElement.dataset.theme='dark'}</script>
+<style>
+/* 디자인: ARCON / AI 오케스트레이션 플랫폼과 같은 결 — 기본 다크, 어두운 사이드바, 하늘색 포인트, 라이트 테마 전환 */
+:root{
+  --bg:#060A13; --bg-grad:radial-gradient(1200px 600px at 85% -10%, rgba(56,189,248,.08), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgba(129,140,248,.07), transparent 60%);
+  --surface:#0C1322; --surface2:#111A2C; --surface3:#16213A; --ink:#E6EDF7; --ink2:#C3CEE0; --muted:#8293AE; --line:rgba(148,163,184,.14); --line2:rgba(148,163,184,.24);
+  --accent:#38BDF8; --accent2:#22D3EE; --accent-ink:#04121C; --accent-soft:rgba(56,189,248,.12);
+  --rail:#070C17; --rail-line:rgba(148,163,184,.10); --rail-ink:#C8D3E6; --rail-muted:#6E7F9C; --rail-active:linear-gradient(90deg, rgba(56,189,248,.22), rgba(56,189,248,.06));
+  --ok:#34D399; --warn:#FBBF24; --crit:#FB7185; --info:#818CF8;
+  --ok-soft:rgba(52,211,153,.12); --warn-soft:rgba(251,191,36,.12); --crit-soft:rgba(251,113,133,.12); --info-soft:rgba(129,140,248,.14);
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px -12px rgba(0,0,0,.6);
+  --f-sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --r:14px; --grid-c:#26375c; --ax:#8293AE;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#F5F7FB; --bg-grad:radial-gradient(1100px 500px at 90% -20%, rgba(37,99,235,.06), transparent 60%);
+  --surface:#FFFFFF; --surface2:#F8FAFC; --surface3:#F1F5F9; --ink:#0F172A; --ink2:#334155; --muted:#64748B; --line:#E2E8F0; --line2:#CBD5E1;
+  --accent:#2563EB; --accent2:#0891B2; --accent-ink:#FFFFFF; --accent-soft:#EFF6FF;
+  --ok:#059669; --warn:#B45309; --crit:#E11D48; --info:#4F46E5;
+  --ok-soft:#ECFDF5; --warn-soft:#FFFBEB; --crit-soft:#FFF1F2; --info-soft:#EEF2FF;
+  --shadow:0 1px 2px rgba(15,23,42,.04), 0 4px 16px -8px rgba(15,23,42,.08);
+  --grid-c:#E2E8F0; --ax:#64748B;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg) fixed;background-image:var(--bg-grad);color:var(--ink);font-family:var(--f-sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;word-break:keep-all}
+:root[lang="ja"] body,:root[lang="ko"] body{line-break:strict}
+button,input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+svg.i{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---- 로그인 ---- */
+#login{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:var(--bg);background-image:var(--bg-grad)}
+#login .box{width:420px;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:34px 32px 28px;box-shadow:var(--shadow);position:relative}
+#login .lang-top{position:absolute;right:16px;top:16px}
+#login h1{font-size:22px;margin:16px 0 4px;letter-spacing:-.02em}
+#login p.sub{color:var(--muted);margin:0 0 20px;font-size:13px}
+#login .btn.primary{width:100%;justify-content:center;height:46px;margin-top:20px;font-size:15px}
+#login .foot{margin-top:16px;font-size:11.5px;color:var(--muted);text-align:center}
+#login .input{width:100%}
+
+/* ---- 틀 ---- */
+.app{display:grid;grid-template-columns:272px minmax(0,1fr);min-height:100vh}
+body.fold .app{grid-template-columns:0 minmax(0,1fr)}
+body.fold .rail{padding:0;border:0;overflow:hidden}
+.rail{background:var(--rail);border-right:1px solid var(--rail-line);padding:18px 14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:0;height:100vh;overflow:auto;color:var(--rail-ink);scrollbar-width:thin}
+.brand{display:flex;align-items:center;gap:11px;padding:2px 6px 4px}
+.logo{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#0EA5E9,#6366F1);box-shadow:0 6px 18px -6px rgba(56,189,248,.55);flex:none}
+.logo svg{width:19px;height:19px}
+.brand .bt{display:flex;flex-direction:column;line-height:1.25}
+.brand b{font-size:16px;letter-spacing:-.02em;color:#F1F5F9}
+#login .brand b{color:var(--ink)}
+.brand .bt span{font-size:11.5px;color:var(--rail-muted)}
+.tenant{display:grid;gap:3px;padding:10px 12px;border-radius:12px;background:rgba(148,163,184,.06);border:1px solid var(--rail-line);font-size:12px}
+.tenant .tl1{display:flex;justify-content:space-between;color:var(--rail-muted);font-size:11px}
+.tenant .okk{display:inline-flex;align-items:center;gap:4px;color:#34D399}
+.tenant .tl2{color:#E2E8F0;font-weight:600}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav .sec{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--rail-muted);padding:6px 10px;text-transform:uppercase}
+.grp>button{display:flex;align-items:center;gap:11px;width:100%;padding:8px 10px;border:0;border-radius:10px;background:none;color:var(--rail-ink);cursor:pointer;text-align:left}
+.grp>button:hover{background:rgba(148,163,184,.08);color:#fff}
+.grp>button svg.i{color:var(--rail-muted)}
+.grp>button .nl{display:flex;flex-direction:column;min-width:0;line-height:1.3;flex:1}
+.grp>button .nl span{font-size:13.5px;font-weight:600}
+.grp>button .nl small{font-size:11px;color:var(--rail-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grp>button .car{width:14px;height:14px;transition:transform .15s}
+.grp.open>button .car{transform:rotate(90deg)}
+.grp.has>button{background:var(--rail-active);color:#fff}
+.grp.has>button svg.i:first-child{color:#38BDF8}
+.grp .items{display:none;padding:2px 0 6px 10px;margin-left:18px;border-left:1px solid var(--rail-line)}
+.grp.open .items{display:block}
+.mi{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 10px;border-radius:8px;color:#AEBBD1;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+.mi:hover{background:rgba(148,163,184,.08);color:#fff}
+.mi.on{background:rgba(56,189,248,.14);color:#fff;font-weight:600}
+.mi.on::before{content:"";position:absolute;left:-11px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:#38BDF8;box-shadow:0 0 12px #38BDF8}
+.scope{margin-top:auto;border:1px solid var(--rail-line);border-radius:12px;padding:12px;font-size:12px;display:grid;gap:9px;background:rgba(148,163,184,.05)}
+.scope .who{display:flex;align-items:center;gap:10px}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#04121C;background:linear-gradient(135deg,#7DD3FC,#A5B4FC);flex:none}
+.scope .wn{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.scope .wn b{color:#F1F5F9;font-size:13px}
+.scope .wn small{color:var(--rail-muted);font-size:11px}
+.scope .lo{border:1px solid var(--rail-line);background:#0B1324;color:#C8D3E6;border-radius:8px;padding:6px 9px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;justify-content:center}
+.scope .lo:hover{border-color:#38BDF8}
+
+.main-col{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:14px;padding:12px 28px;background:color-mix(in srgb, var(--bg) 78%, transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.crumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);white-space:nowrap;min-width:0}
+.crumb b{color:var(--ink);font-weight:600}
+.crumb svg{width:14px;height:14px}
+.tsearch{flex:1;max-width:560px;margin-inline:auto;display:flex;align-items:center;gap:10px;padding:0 16px;height:42px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);position:relative}
+.tsearch:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.tsearch>svg{color:var(--accent)}
+.tsearch input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:13.5px}
+.tsearch input::placeholder{color:var(--muted)}
+.sres{position:absolute;left:0;right:0;top:48px;background:var(--surface);border:1px solid var(--line2);border-radius:12px;box-shadow:0 16px 40px -16px rgba(0,0,0,.6);padding:6px;max-height:360px;overflow:auto;z-index:30}
+.sres button{display:flex;justify-content:space-between;gap:10px;width:100%;border:0;background:none;text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer}
+.sres button:hover,.sres button.on{background:var(--accent-soft)}
+.sres small{color:var(--muted)}
+.tacts{display:flex;align-items:center;gap:8px}
+.iconbtn{position:relative;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink2);cursor:pointer;flex:none}
+.iconbtn:hover{color:var(--ink);border-color:var(--line2)}
+.iconbtn .dot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:#F43F5E;box-shadow:0 0 8px #F43F5E}
+.langsw{display:inline-flex;align-items:center;gap:2px;height:38px;padding:0 4px 0 9px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink2)}
+.langsw>svg{width:15px;height:15px;margin-right:4px;color:var(--muted)}
+.langsw button{min-width:30px;height:28px;padding:0 6px;border:0;border-radius:8px;background:transparent;color:var(--ink2);font-weight:600;font-size:12px;cursor:pointer}
+.langsw button:hover{color:var(--ink)}
+.langsw button.on{background:var(--accent);color:var(--accent-ink)}
+.wtabs{display:flex;gap:4px;padding:8px 28px 0;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
+.wtab{display:flex;align-items:center;gap:6px;padding:8px 10px 9px 12px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13px;white-space:nowrap;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.wtab:hover{color:var(--ink)}
+.wtab.on{color:var(--ink);border-bottom-color:var(--accent)}
+.wtab .x{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;color:var(--muted);font-weight:400}
+.wtab .x:hover{background:var(--surface3);color:var(--ink)}
+main{padding:22px 28px 56px;min-width:0;width:100%}
+
+/* ---- 공통 컴포넌트 ---- */
+h1{font-size:24px;font-weight:800;letter-spacing:-.03em;margin:0;line-height:1.3}
+h2{font-size:15px;font-weight:700;margin:0;letter-spacing:-.015em}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.head .ttl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.head .ey{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.code{font-family:var(--f-mono);font-size:11px;color:var(--accent);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:6px;padding:0 6px}
+.lede{color:var(--muted);margin:2px 0 0;max-width:90ch;font-size:13.5px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.panel>header{display:flex;align-items:center;gap:10px;padding:14px 18px 12px;flex-wrap:wrap}
+.panel>header .meta{margin-left:auto;font-size:12px;color:var(--muted)}
+.panel .pb{padding:0 18px 16px;min-width:0}
+.grid2{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.dash{display:grid;gap:14px;grid-template-columns:repeat(12,minmax(0,1fr))}
+.s4{grid-column:span 4}.s5{grid-column:span 5}.s7{grid-column:span 7}.s8{grid-column:span 8}.s12{grid-column:span 12}
+.cond{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 14px;box-shadow:var(--shadow);margin:0}
+.fld{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:12px;color:var(--muted);font-weight:600}
+.input{border:1px solid var(--line);background:var(--surface2);border-radius:10px;padding:7px 11px;outline:none;min-width:150px;height:36px;font-size:13px;color:var(--ink);font-weight:400}
+.input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.input:disabled{opacity:.6}
+.rng{display:flex;align-items:center;gap:6px}
+.rng .input{min-width:140px}
+.dwrap{position:relative;display:inline-flex}.dwrap .input{padding-right:34px;font-variant-numeric:tabular-nums}.dwrap .dpk{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:0;background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;border-radius:8px}.dwrap .dpk:hover{color:var(--accent);background:var(--accent-soft)}.dwrap .dhid{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.btn{border:1px solid var(--line2);background:var(--surface2);border-radius:10px;padding:0 14px;height:36px;font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:var(--accent-ink);box-shadow:0 6px 18px -8px var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,transparent);background:var(--crit-soft)}
+.btn.good{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent);background:var(--ok-soft)}
+.btn.blue{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:var(--accent-soft)}
+.btn.big{height:46px;padding:0 18px;font-size:14px}
+.btn.sm{height:28px;padding:0 10px;font-size:12px;border-radius:8px}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:1px 10px;font-size:11.5px;font-weight:700;white-space:nowrap;border:1px solid transparent;line-height:1.6}
+.p-ok{background:var(--ok-soft);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 30%,transparent)}
+.p-warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.p-crit{background:var(--crit-soft);color:var(--crit);border-color:color-mix(in srgb,var(--crit) 30%,transparent)}
+.p-info{background:var(--info-soft);color:var(--info);border-color:color-mix(in srgb,var(--info) 30%,transparent)}
+.p-line{border-color:var(--line2);color:var(--ink2);background:var(--surface2)}
+.note{font-size:12.5px;color:var(--ink2);border-left:3px solid var(--accent);padding:2px 0 2px 10px}
+
+/* 표 */
+.tablewrap{overflow:auto;max-height:520px;border-top:1px solid var(--line)}
+.tablewrap.short{max-height:340px}
+table.g{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+table.g th,table.g td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+table.g th{font-size:11.5px;letter-spacing:.03em;color:var(--muted);font-weight:700;background:var(--surface2);position:sticky;top:0;z-index:1;cursor:pointer;user-select:none}
+table.g th:hover{color:var(--ink)}
+table.g th .srt{color:var(--accent);margin-left:4px;font-size:10px}
+table.g td{max-width:280px;overflow:hidden;text-overflow:ellipsis}
+table.g tbody tr{transition:background .12s;cursor:pointer}
+table.g tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+table.g tbody tr.sel{background:var(--accent-soft)}
+table.g td.n,table.g th.n{text-align:right}
+table.g td.c{text-align:center}
+table.g .rn{width:44px;text-align:center;color:var(--muted)}
+table.g .ck{width:36px;text-align:center}
+table.g tfoot td{position:sticky;bottom:0;background:var(--surface3);font-weight:700;border-top:1px solid var(--line2)}
+table.g input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
+table.g select.cell{height:28px;border:1px solid var(--line);border-radius:7px;background:var(--surface2);padding:0 6px}
+.empty{padding:36px 16px;text-align:center;color:var(--muted)}
+.gfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.pg{display:flex;gap:4px}
+.pg button{min-width:28px;height:26px;border:1px solid var(--line);background:var(--surface2);border-radius:7px;cursor:pointer;font-size:12px}
+.pg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:middle}
+.loading{opacity:.35;transition:opacity .15s}
+.kvs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.kvs div{border:1px solid var(--line);border-radius:12px;padding:11px 14px;background:var(--surface2);min-width:0}
+.kvs span{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.kvs b{font-size:16px;overflow-wrap:anywhere}
+
+/* 대시보드 */
+.hero{position:relative;overflow:hidden;border-radius:18px;padding:26px 28px;color:#E2E8F0;background:linear-gradient(120deg,#0B1222 0%,#0F1B33 45%,#1E1B4B 100%);border:1px solid rgba(148,163,184,.16);box-shadow:0 20px 40px -24px rgba(2,6,23,.8)}
+.hero::after{content:"";position:absolute;right:-80px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(closest-side,rgba(56,189,248,.28),transparent);pointer-events:none}
+.hero .eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#7DD3FC;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);border-radius:999px;padding:4px 11px}
+.hero h1{color:#F8FAFC;margin-top:12px;font-size:27px}
+.hero p{color:#A9B6CC;margin:8px 0 0;max-width:72ch}
+.hero .hstats{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;position:relative;z-index:1}
+.hero .hstat{display:flex;align-items:center;gap:8px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:8px 12px;font-size:12.5px;color:#CBD5E1}
+.hero .hstat b{font-size:15px;color:#fff}
+.hero .hstat i{width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c)}
+.kgrid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.kcard{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:2px;padding:18px 20px;border-radius:var(--r);border:1px solid color-mix(in srgb,var(--kc) 28%,var(--line));background:linear-gradient(160deg,color-mix(in srgb,var(--kc) 11%,var(--surface)) 0%,var(--surface) 60%);box-shadow:var(--shadow);cursor:pointer;text-align:left;color:inherit}
+.kcard:hover{border-color:color-mix(in srgb,var(--kc) 55%,transparent)}
+.kcard .ki{position:absolute;right:16px;top:16px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--kc);background:color-mix(in srgb,var(--kc) 14%,transparent);box-shadow:0 0 18px -4px var(--kc)}
+.kcard .kl{font-size:12.5px;font-weight:700;color:var(--muted)}
+.kcard .kv{font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1.2;margin-top:6px}
+.kcard .kd{font-size:12px;color:var(--muted)}
+.kcard .kd.up{color:var(--ok)}.kcard .kd.down{color:var(--crit)}
+.chart{width:100%;display:block}
+.chart text{font-size:11px;fill:var(--ax);font-family:var(--f-sans)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:0 2px 8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.bar{height:8px;border-radius:999px;background:var(--surface3);overflow:hidden;min-width:90px}
+.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 60%,transparent),var(--accent))}
+.alerts{display:flex;flex-direction:column;gap:10px}
+.alert{display:grid;grid-template-columns:3px minmax(0,1fr) auto;gap:14px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:12px 14px 12px 0;background:var(--surface2);cursor:pointer}
+.alert:hover{border-color:var(--line2)}
+.alert .sev{align-self:stretch;border-radius:0 3px 3px 0;background:var(--sc);box-shadow:0 0 12px var(--sc)}
+.alert b{display:block;font-size:13.5px}
+.alert p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.lamp{display:inline-block;width:10px;height:10px;border-radius:50%}
+.lamp.g{background:#34D399;box-shadow:0 0 10px #34D399}.lamp.y{background:#FBBF24;box-shadow:0 0 10px #FBBF24}.lamp.r{background:#FB7185;box-shadow:0 0 10px #FB7185}.lamp.o{background:#64748B}
+.monh{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.clk{margin-left:auto;font-family:var(--f-mono);font-size:20px;font-weight:600;color:var(--accent)}
+.linecard{border:1px solid var(--line);border-radius:var(--r);padding:16px;background:var(--surface);box-shadow:var(--shadow);cursor:pointer;text-align:left;color:inherit}
+.linecard:hover{border-color:var(--accent)}
+.linecard h3{margin:0 0 6px;font-size:15px;display:flex;align-items:center;gap:8px}
+.linecard .rings{display:flex;justify-content:space-around}
+.linecard ul{margin:8px 0 0;padding:0;list-style:none;font-size:12.5px;color:var(--ink2)}
+.linecard li{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px dashed var(--line)}
+.bigp{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px;align-items:center;padding:20px}
+.bigp .img{background:var(--surface2);border:1px solid var(--line);border-radius:16px;display:grid;place-items:center;min-height:270px}
+.bigp dl{margin:0;display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px 18px;align-items:center}
+.bigp dt{color:var(--muted);font-size:15px}
+.bigp dd{margin:0;font-size:28px;font-weight:800;letter-spacing:-.02em}
+.bigp dd.q{font-size:58px;color:var(--accent);font-family:var(--f-mono)}
+.popbadge{display:inline-flex;font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-radius:999px;padding:1px 9px}
+.plan svg{width:100%;height:auto;display:block}
+.plan .rm rect.box{fill:var(--surface2);stroke:var(--line2)}
+.plan .rm:hover rect.box{stroke:var(--accent)}
+
+/* 모달·토스트 */
+#mask{position:fixed;inset:0;background:rgba(2,6,23,.6);backdrop-filter:blur(3px);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border:1px solid var(--line2);border-radius:16px;width:780px;max-width:100%;max-height:calc(100vh - 32px);display:flex;flex-direction:column;box-shadow:0 24px 60px -20px rgba(0,0,0,.7)}
+.modal.sm{width:440px}
+.modal-h{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.modal-h h3{margin:0;font-size:15px}
+.modal-h .x{margin-left:auto}
+.modal-b{padding:16px 18px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.modal-f{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--line)}
+.modal ol{margin:0;padding-left:20px;line-height:1.9;color:var(--ink2)}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.formgrid .input{width:100%}
+.doc{border:1px solid var(--line);border-radius:12px;padding:20px 22px;background:var(--surface2)}
+.doc h4{text-align:center;font-size:18px;margin:0 0 14px}
+.scale{background:#060A13;border:1px solid var(--line2);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;color:#8293AE}
+.scale b{font-family:var(--f-mono);font-size:44px;color:#38BDF8}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+#toast div{background:var(--surface3);color:var(--ink);border:1px solid var(--line2);border-radius:12px;padding:10px 16px;font-size:13px;box-shadow:0 12px 32px -12px rgba(0,0,0,.6);animation:tin .2s}
+@keyframes tin{from{transform:translateY(8px);opacity:0}}
+@media print{.rail,.topbar,.wtabs,#mask .modal-f{display:none}}
+@media (max-width:1100px){.topbar{padding:10px 18px}main{padding:18px 18px 56px}.wtabs{padding:6px 18px 0}}
+@media (max-width:920px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{position:fixed;z-index:40;width:280px;left:0;top:0;transform:translateX(-100%);transition:transform .2s}
+  body.navopen .rail{transform:none}
+  .crumb{display:none}
+  .dash>*{grid-column:span 12}
+  .grid2,.formgrid{grid-template-columns:minmax(0,1fr)}
+  .bigp{grid-template-columns:minmax(0,1fr)}
+  .langsw>svg{display:none}
+}
+
+/* ---- AI 품질예측 전용 ---- */
+.pv{display:grid;gap:14px;grid-template-columns:minmax(220px,1.1fr) repeat(4,minmax(0,1fr))}
+.pcard{border-radius:var(--r);border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.pcard span{font-size:12.5px;font-weight:700;color:var(--muted)}
+.pcard b{font-size:26px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.pcard b.sm{font-size:19px}
+.pbig{border-radius:var(--r);padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;color:#fff;min-height:132px;box-shadow:0 14px 34px -18px var(--pc);background:linear-gradient(140deg,var(--pc),color-mix(in srgb,var(--pc) 55%,#0B1222))}
+.pbig span{font-size:13px;font-weight:700;opacity:.85}
+.pbig b{font-size:46px;font-weight:900;letter-spacing:.02em;line-height:1}
+.pbig small{font-size:12px;opacity:.85}
+.pbig.ok{--pc:#10B981}.pbig.ng{--pc:#F43F5E}.pbig.none{--pc:#475569}
+.vok{color:var(--ok)}.vng{color:var(--crit)}
+.strip{display:flex;gap:2px;align-items:flex-end;height:26px;margin:4px 0 2px}
+.strip i{flex:1;border-radius:2px;background:var(--ok);opacity:.75;height:100%;cursor:pointer}
+.strip i.ng{background:var(--crit);opacity:1}
+.strip i.mis{outline:2px solid var(--warn);outline-offset:-2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line2);background:var(--surface2);color:var(--ink2);border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--f-mono)}
+.chip:hover{border-color:var(--accent)}
+.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.optg{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.opt{border:1px solid var(--line);border-radius:12px;background:var(--surface2);padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.opt span{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+.opt b{font-size:24px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+.opt small{font-size:11.5px;color:var(--muted)}
+.opt .delta{font-size:11.5px;font-weight:700}
+.smalls{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.mini{border:1px solid var(--line);border-radius:12px;background:var(--surface2);padding:10px 12px 6px;min-width:0}
+.mini h3{margin:0 0 4px;font-size:12px;font-family:var(--f-mono);color:var(--ink2);font-weight:600;overflow-wrap:anywhere}
+.busy{position:fixed;inset:0;z-index:70;display:grid;place-items:center;background:rgba(2,6,23,.45);backdrop-filter:blur(2px)}
+.busy div{display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line2);border-radius:16px;padding:22px 28px;font-weight:700}
+.busy svg{width:38px;height:38px;animation:spin 1s linear infinite;color:var(--accent)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dash4{display:grid;gap:14px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.dpanel{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow);min-width:0}
+.dpanel .dh{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.dpanel .dh h2{font-size:15px}
+.dpanel .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dpanel .trio div,.dpanel .when{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface2);min-width:0}
+.dpanel .trio span,.dpanel .when span{display:block;font-size:11px;color:var(--muted);font-weight:700}
+.dpanel .trio b{font-size:17px}
+.dpanel .when b{font-size:14px;font-variant-numeric:tabular-nums}
+.dpanel .pbig{min-height:96px}
+.dpanel .pbig b{font-size:38px}
+.dpanel .input{min-width:0}
+.cm{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;align-items:stretch;font-size:12.5px}
+.cm .h{display:grid;place-items:center;color:var(--muted);font-weight:700;padding:4px}
+.cm .c{border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px 8px;font-weight:700;min-height:92px}
+.cm .c b{font-size:26px}
+.cm .c small{font-weight:600;opacity:.8}
+.hm text{font-size:9.5px;fill:var(--ax);font-family:var(--f-mono)}
+.hm rect.cell:hover{stroke:var(--ink);stroke-width:1.5}
+.scale-bar{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-top:8px}
+.scale-bar i{display:block;width:200px;height:10px;border-radius:5px;background:linear-gradient(90deg,#F43F5E,var(--surface3),#38BDF8)}
+@media (max-width:1280px){.dash4{grid-template-columns:repeat(2,minmax(0,1fr))}.pv{grid-template-columns:repeat(2,minmax(0,1fr))}.pv .pbig{grid-column:span 2}}
+@media (max-width:920px){.dash4{grid-template-columns:minmax(0,1fr)}.smalls{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:720px){.topbar{flex-wrap:wrap;padding:10px 16px;gap:10px}.tsearch{order:5;flex:1 1 100%;max-width:none;margin:0}.tacts{margin-left:auto;gap:6px}.topbar>*{min-width:0}}
+
+</style>
+</head>
+<body>
+<div id="login"></div>
+<div class="app hidden" id="app">
+  <aside class="rail" id="rail"></aside>
+  <div class="main-col">
+    <header class="topbar" id="topbar"></header>
+    <nav class="wtabs" id="wtabs"></nav>
+    <main id="view"></main>
+  </div>
+</div>
+<div id="mask" class="hidden"></div>
+<div id="toast"></div>
+<script>
+const I18N = {"en":{"10초마다 자동 갱신":"Auto-refresh every 10 s","4개 공정 실시간 예측":"Live prediction · 4 processes","4개 공정의 실시간 품질 예측을 한 화면에 모은 시작 화면입니다. 공정마다 가장 최근 구간의 예측 · PLC 판정 · 일치 여부와 데이터 트렌드를 1분마다 갱신합니다.":"The start screen that gathers live quality predictions for all 4 processes. For each process it refreshes the latest interval's prediction, PLC result, match status and data trend every minute.","AI 성능":"AI Performance","AI성능 조회 ({p})":"AI performance ({p})","AUC · Accuracy · F1 · Recall · Precision을 비교합니다.":"Compare AUC · Accuracy · F1 · Recall · Precision.","Auto Bussing · 버스바 연결":"Auto Bussing · busbar connection","Auto Soldering · 자동 납땜":"Auto Soldering · automatic soldering","Lamination · 진공 압착":"Lamination · vacuum pressing","NG 예측":"NG predicted","NG 예측 알림":"NG prediction alerts","PLC 일치율":"PLC match rate","Tabber · 스트링 형성":"Tabber · string forming","[엑셀 다운로드]로 결과를 저장하고, [초기화]로 조건을 되돌립니다.":"Save results with [Excel download] and reset the conditions with [Reset].","[엑셀 다운로드]로 결과를 저장해 설정 변경 검토 자료로 씁니다.":"Save the results with [Excel download] to use when reviewing setting changes.","[조회]를 누르면 변수마다 그래프가 하나씩 그려집니다.":"Press [Search] to draw one chart per variable.","[조회]를 누르면 선택한 태그의 원본 값이 큰 그래프로 그려집니다.":"Press [Search] to draw the selected tag's raw values in a large chart.","[조회]를 누르면 최적값 계산을 시작합니다.":"Press [Search] to start the optimum calculation.","[초기화]로 두 표를 비웁니다.":"[Reset] clears both tables.","[초기화]로 조건과 그래프를 지웁니다.":"[Reset] clears the conditions and charts.","{d} 기준 · 1분마다 갱신":"As of {d} · refreshed every minute","{n}건을 엑셀(CSV) 파일로 저장했습니다.":"Saved {n} rows to an Excel (CSV) file.","{p} {e} NG 예측 {n}건":"{p} {e}: {n} NG predictions","{s} 도움말":"{s} help","{t} 구간 예측":"Prediction for {t} interval","검증":"Check","계산 {t} · 양품 확률 {p}%":"Calculated {t} · OK probability {p}%","계산 중입니다...":"Calculating...","계산이 끝나면 변수마다 최적값 카드가 채워집니다.":"When the calculation finishes, an optimum card fills in for each variable.","공정":"Process","공정 최적값":"Process Optimum","공정 최적값 계산이 끝났습니다.":"Process optimum calculation finished.","공정 최적값 조회":"Process optimum","기간 안에 학습된 AI 모델 버전들의 성능 지표를 비교하는 화면입니다. 모델을 고르면 혼동 행렬과 ROC 곡선을 함께 보여 줍니다.":"Compares performance metrics of AI model versions trained in the period. Pick a model to see its confusion matrix and ROC curve.","기간 안에 학습된 모델이 없습니다.":"No models were trained in this period.","기간 예측 {n}건 · 평균 정확도 {a}%":"{n} predictions in period · avg. accuracy {a}%","날짜를 연도-월-일 형식으로 입력해 주세요.":"Enter the date as YYYY-MM-DD.","날짜를 확인해주세요":"Please check the dates","놓친 NG":"Missed NG","닫기":"Close","달력":"Calendar","데이터 상세":"Data details","데이터 수":"Data count","데이터 시각화":"Data Visualization","데이터 시각화(가공 값)와 비교해 순간 튐 · 끊김 같은 원본 이상을 확인합니다.":"Compare with Data Visualization (processed values) to find raw anomalies such as spikes or gaps.","데이터셋 크기":"Dataset size","라미네이션":"Lamination","라인":"Line","라인 단위 예측 (설비 선택 없음)":"Line-level prediction (no equipment selection)","로그아웃":"Log out","로그인":"Log in","막대가 길수록(변수중요도), 상자가 오른쪽일수록(순열중요도) 중요한 변수입니다.":"Longer bars (variable importance) or boxes further right (permutation importance) mean more important variables.","메뉴 접기":"Collapse menu","모니터링":"Monitoring","모델 학습에 쓰는 가공 데이터(1분 구간 평균 · 표준편차)를 학습 구간별로 확인하는 화면입니다. 위 표에서 구간을 고르면 아래 표에 변수 값 상세가 나옵니다.":"Shows the processed training data (1-minute mean · std. dev.) by training interval. Pick an interval in the upper table to see variable details below.","모델 행을 누르면 아래에 혼동 행렬과 ROC 곡선이 그려집니다.":"Click a model row to draw the confusion matrix and ROC curve below.","모델명":"Model","모델버전":"Model version","모델버전을 고르고 [조회]를 누릅니다.":"Pick a model version and press [Search].","모델을 선택해주세요.":"Please select a model.","모델이 OK/NG를 판단할 때 어떤 변수를 중요하게 보는지 보여 주는 화면입니다. 변수 중요도와 순열 중요도 두 방식으로 봅니다.":"Shows which variables the model relies on when judging OK/NG, in two ways: variable importance and permutation importance.","목표 양품 확률 99% 이상 · 변수별 최소 · 최대 허용 범위 안에서 유전 알고리즘으로 탐색한 제안값입니다. 설비 설정 변경은 공정 담당 승인 후 반영합니다.":"Suggested values found by a genetic algorithm for an OK probability of 99% or more, within each variable's min–max range. Apply setting changes only after the process owner approves.","변수":"Variable","변수 간 상관계수":"Correlation between variables","변수 간 상관계수를 색 행렬로 보여 주는 화면입니다. 함께 오르내리는 변수를 찾아 원인 분석과 설정값 조정에 씁니다.":"Shows correlation coefficients between variables as a color matrix. Find variables that move together for root-cause analysis and setting adjustments.","변수 값을 섞었을 때 모델 성능(정확도)이 떨어진 정도입니다. 오른쪽일수록 중요한 변수입니다.":"How much model accuracy drops when a variable's values are shuffled. Further right means more important.","변수중요도":"Variable importance","불일치":"Mismatch","비밀번호":"Password","사용 순서":"How to use","상관관계 히트맵":"Correlation Heatmap","상위 변수를 데이터 시각화 · 히트맵 화면에서 이어서 분석합니다.":"Continue analyzing the top variables in Data Visualization and Heatmap.","색이 진한 칸을 찾아 두 변수의 관계를 확인합니다. 칸에 마우스를 올리면 값이 나옵니다.":"Look for dark cells to check how two variables relate. Hover a cell to see its value.","선택 {n}건":"{n} selected","선택하세요":"Select","선택한 설비의 최근 1시간 예측 결과를 보여 주는 감시 화면입니다. 가장 최근 구간의 AI 예측 · PLC 판정 · 일치 여부와 변수 평균의 흐름을 10초마다 갱신합니다.":"A monitoring screen showing the last hour of predictions for the selected equipment. It refreshes the latest AI prediction, PLC result, match status and variable mean trends every 10 seconds.","설비 데이터로 품질을 먼저 예측하고, 양품 조건을 제안합니다.":"Predict quality from equipment data first, and get suggested conditions for good output.","설비 선택 상자에서 볼 설비를 고릅니다. 고르는 즉시 최근 1시간 결과를 불러옵니다.":"Pick equipment in the equipment box. The last hour of results loads right away.","설비 원본 태그 하나를 골라 트렌드 · 히스토그램 · 박스플롯으로 보는 화면입니다. 가공 전 값으로 설비 상태를 자세히 봅니다.":"View one raw equipment tag as a trend, histogram or box plot, to inspect equipment condition with unprocessed values.","설비명":"Equipment","설비명, 시각화 방식, 시작일 · 종료일을 고릅니다.":"Pick the equipment, chart type, and start · end dates.","설비명과 시작일 · 종료일을 고르고 [조회]를 누릅니다.":"Pick the equipment and start · end dates, then press [Search].","설비에서 수집한 원본 데이터를 일자별로 확인하는 화면입니다. 위 표에서 일자를 고르면 아래 표에 그날의 원본 값이 나옵니다.":"Shows raw data collected from equipment by day. Pick a day in the upper table to see that day's raw values below.","설비와 기간을 골라 일자별 예측 건수와 예측 정확도를 확인하는 화면입니다. AI 예측과 설비 PLC 판정을 비교해 하루 단위로 집계합니다.":"Pick equipment and a period to see daily prediction counts and accuracy. AI predictions are compared with equipment PLC results and totaled per day.","순열중요도":"Permutation importance","시각화":"Chart","시각화 방식, 설비명, 태그명, 시작일 · 종료일을 고릅니다.":"Pick the chart type, equipment, tag, and start · end dates.","시연용 목업입니다. 화면의 데이터는 모두 가상 데이터입니다.":"This is a demo mockup. All data on screen is fictional.","시작일":"Start date","시작일 · 종료일을 고르고 [조회]를 누르면 그 기간에 학습된 모델 목록이 나옵니다.":"Pick start · end dates and press [Search] to list the models trained in that period.","시작일 · 종료일을 고르고 [조회]를 누르면 일자별 데이터 수와 OK · NG 건수가 나옵니다.":"Pick start · end dates and press [Search] to see daily data counts and OK · NG counts.","시작일 · 종료일을 고르고 [조회]를 누르면 학습 구간별 데이터 수와 OK · NG 건수가 나옵니다.":"Pick start · end dates and press [Search] to see data counts and OK · NG counts per training interval.","실시간 데이터 트렌드":"Live data trend","실시간 예측":"Live prediction","실시간 예측 카드가 초록(OK)인지 빨강(NG)인지 확인합니다.":"Check whether each live prediction card is green (OK) or red (NG).","실시간 품질 예측":"Live Quality Prediction","실제":"Actual","아래 표에서 행을 골라 [엑셀 다운로드]로 저장합니다. 고른 행이 없으면 전체를 저장합니다.":"Select rows in the table below and save with [Excel download]. With no rows selected, everything is saved.","아이디":"User ID","아이디와 비밀번호를 입력하세요.":"Enter your user ID and password.","알림":"Alerts","언어":"Language","엑셀 다운로드":"Excel download","연결 설비":"Connected equipment","연결된 설비":"Connected equipment","연도-월-일":"YYYY-MM-DD","열 머리글을 눌러 정렬하고, 정확도가 낮은 날을 찾아 원인을 살펴봅니다.":"Click column headers to sort, then look into days with low accuracy.","예측":"Prediction","예측 · PLC · 검증으로 AI 예측과 설비 판정이 맞는지 봅니다.":"Use Prediction · PLC · Check to see whether the AI agrees with the equipment result.","예측 · PLC 불일치":"Prediction · PLC mismatch","예측정확도":"Accuracy","오늘의 품질 예측 현황":"Today's quality prediction status","오탐률 (FPR)":"False positive rate (FPR)","오토버싱":"Auto Bussing","오토솔더링":"Auto Soldering","왼쪽 큰 카드의 색으로 현재 예측을 확인합니다. 초록은 OK, 빨강은 NG입니다.":"Check the current prediction by the color of the large left card: green is OK, red is NG.","원본 데이터 시각화":"Raw Data Visualization","원본 데이터셋":"Raw Dataset","위 표에서 구간 행을 누르면 아래 표에 그 구간의 변수 값이 나옵니다.":"Click an interval row in the upper table to see its variable values below.","위 표에서 일자 행을 누르면 아래 표에 그날의 원본 데이터가 나옵니다.":"Click a day row in the upper table to see that day's raw data below.","위 표에서 행을 누르면 상세 데이터가 나옵니다.":"Click a row in the upper table to see details.","일시":"Time","일시 · 예측 · PLC · 검증 카드로 최근 구간 시각과 판정 일치 여부를 봅니다.":"The Time · Prediction · PLC · Check cards show the latest interval time and whether the results match.","일자":"Date","일자별 예측 이력":"Daily prediction history","일자별 원본 데이터":"Raw data by day","일자별 전체 예측 건수, NG 예측 건수, PLC NG 건수, 예측 정확도(%)를 확인합니다.":"Check total predictions, NG predictions, PLC NG count and accuracy (%) per day.","일치":"Match","일치하는 화면이 없습니다.":"No matching screens.","잘못 잡은 NG":"False NG","잡아낸 NG":"Caught NG","저장할 데이터가 없습니다. 먼저 [조회]를 누르세요.":"Nothing to save. Press [Search] first.","전체 선택":"Select all","전체예측건수":"Total predictions","정상":"Normal","정상 판정":"OK results","조회":"Search","조회 결과가 없습니다. 조건을 고르고 [조회]를 누르세요.":"No results. Pick conditions and press [Search].","조회 조건을 고르고 [조회]를 누릅니다. 계산하는 동안 진행 표시가 나옵니다.":"Pick the conditions and press [Search]. A progress indicator shows while calculating.","조회 조건을 초기화했습니다.":"Search conditions reset.","조회일":"Date","종료일":"End date","종료일은 오늘 이후로 고를 수 없습니다.":"The end date cannot be later than today.","중앙값":"Median","지금 갱신":"Refresh now","초기화":"Reset","총 {n}건":"{n} total","총 데이터 수":"Total data","최근 1시간 NG 예측이 없습니다.":"No NG predictions in the last hour.","최근 1시간 · 마지막 {t}":"Last hour · latest {t}","최근 1시간 데이터 없음":"No data in the last hour","최근 1시간 예측":"Last-hour predictions","최근 1시간 판정":"Last-hour results","최대":"Max","최소":"Min","최신 데이터로 갱신했습니다.":"Refreshed with the latest data.","최적값":"Optimum","컬럼명 (여러 개 선택)":"Columns (multi-select)","컬럼명 칩을 눌러 보고 싶은 변수를 골라 트렌드 그래프에 겹쳐 봅니다.":"Click column chips to pick variables and overlay them on the trend chart.","컬럼명을 하나 이상 고르세요.":"Pick at least one column.","태그명":"Tag","태빙":"Tabbing","태빙 8 · 라미네이션 3 · 라인 2":"Tabbing 8 · Lamination 3 · Line 2","태빙 · 라미네이션 패널은 선택 상자에서 볼 설비를 고릅니다. 오토솔더링 · 오토버싱은 라인 단위입니다.":"In the Tabbing and Lamination panels, pick equipment in the select box. Auto Soldering and Auto Bussing work per line.","태빙 · 오토솔더링 · 오토버싱 · 라미네이션 4개 공정의 설비 데이터를 AI가 1분 구간마다 판정합니다.":"AI judges equipment data from 4 processes (Tabbing, Auto Soldering, Auto Bussing, Lamination) in 1-minute intervals.","태양광 모듈 AI 품질예측":"PV Module AI Quality Prediction","테마 전환":"Toggle theme","통합 대시보드":"Integrated Dashboard","트렌드로 흐름을, 히스토그램으로 분포를, 박스플롯으로 범위와 이상치를 확인합니다.":"Use the trend for flow, the histogram for distribution, and the box plot for range and outliers.","특성 중요도":"Feature Importance","특성 중요도 상위 변수와 강하게 묶인 변수를 함께 관리 대상으로 봅니다.":"Also manage variables strongly tied to the top feature-importance variables.","특성중요도":"Importance type","특성중요도 상자에서 변수중요도 또는 순열중요도를 고릅니다.":"In the importance box, choose variable importance or permutation importance.","파랑: 같은 방향 · 빨강: 반대 방향":"Blue: same direction · Red: opposite direction","판정":"Result","패널 제목을 누르면 해당 공정의 실시간 품질 예측 화면이 열립니다.":"Click a panel title to open that process's live quality prediction screen.","평균":"Mean","표시할 데이터가 없습니다.":"No data to display.","표준편차":"Std. dev.","품질 담당자":"Quality manager","품질 예측 이력":"Prediction History","품질팀 · 조회 권한":"Quality team · view access","필요한 행을 골라 [엑셀 다운로드]로 저장합니다.":"Select the rows you need and save with [Excel download].","학습 구간":"Training interval","학습 데이터셋":"Training Dataset","학습(가공) 데이터를 트렌드 차트 · 히스토그램 · 박스플롯으로 바꿔 보며 변수의 흐름과 분포를 확인하는 화면입니다.":"Switch the training (processed) data between trend chart, histogram and box plot to check each variable's flow and distribution.","학습된 AI 모델로 양품 확률이 가장 높아지는(목표 99% 이상) 설비 설정값을 계산해 보여 주는 화면입니다. 변수마다 허용 범위(최소 · 최대) 안에서만 찾습니다.":"Uses the trained AI model to calculate equipment settings that maximize OK probability (target 99%+). It searches only within each variable's allowed range (min · max).","한":"한","한국어":"한국어","허용 범위":"Allowed range","현재값":"Current","현재값과 최적값의 차이를 보고 조정할 변수를 확인합니다.":"Compare current and optimum values to find variables to adjust.","혼동 행렬에서 놓친 NG(실제 NG · 예측 OK) 건수를 확인합니다.":"In the confusion matrix, check missed NG (actual NG · predicted OK).","화면 도움말":"Screen help","화면 이름이나 화면 ID로 찾기 (예: 최적값, LM-03)":"Find by screen name or ID (e.g. Optimum, LM-03)","확인":"OK"},"ja":{"10초마다 자동 갱신":"10秒ごとに自動更新","4개 공정 실시간 예측":"4工程リアルタイム予測","4개 공정의 실시간 품질 예측을 한 화면에 모은 시작 화면입니다. 공정마다 가장 최근 구간의 예측 · PLC 판정 · 일치 여부와 데이터 트렌드를 1분마다 갱신합니다.":"4工程のリアルタイム品質予測を1画面にまとめたスタート画面です。工程ごとに最新区間の予測・PLC判定・一致状況とデータトレンドを1分ごとに更新します。","AI 성능":"AI性能","AI성능 조회 ({p})":"AI性能照会（{p}）","AUC · Accuracy · F1 · Recall · Precision을 비교합니다.":"AUC・Accuracy・F1・Recall・Precisionを比較します。","Auto Bussing · 버스바 연결":"Auto Bussing・バスバー接続","Auto Soldering · 자동 납땜":"Auto Soldering・自動はんだ付け","Lamination · 진공 압착":"Lamination・真空圧着","NG 예측":"NG予測","NG 예측 알림":"NG予測アラート","PLC 일치율":"PLC一致率","Tabber · 스트링 형성":"Tabber・ストリング形成","[엑셀 다운로드]로 결과를 저장하고, [초기화]로 조건을 되돌립니다.":"[Excelダウンロード]で結果を保存し、[初期化]で条件を戻します。","[엑셀 다운로드]로 결과를 저장해 설정 변경 검토 자료로 씁니다.":"[Excelダウンロード]で結果を保存し、設定変更の検討資料に使います。","[조회]를 누르면 변수마다 그래프가 하나씩 그려집니다.":"[照会]を押すと変数ごとにグラフが1つずつ描かれます。","[조회]를 누르면 선택한 태그의 원본 값이 큰 그래프로 그려집니다.":"[照会]を押すと選択したタグの元データが大きなグラフで描かれます。","[조회]를 누르면 최적값 계산을 시작합니다.":"[照会]を押すと最適値の計算を開始します。","[초기화]로 두 표를 비웁니다.":"[初期化]で2つの表を空にします。","[초기화]로 조건과 그래프를 지웁니다.":"[初期化]で条件とグラフを消去します。","{d} 기준 · 1분마다 갱신":"{d}時点・1分ごとに更新","{n}건을 엑셀(CSV) 파일로 저장했습니다.":"{n}件をExcel（CSV）ファイルに保存しました。","{p} {e} NG 예측 {n}건":"{p} {e} NG予測 {n}件","{s} 도움말":"{s} ヘルプ","{t} 구간 예측":"{t} 区間の予測","검증":"検証","계산 {t} · 양품 확률 {p}%":"計算 {t}・良品確率 {p}%","계산 중입니다...":"計算中です...","계산이 끝나면 변수마다 최적값 카드가 채워집니다.":"計算が終わると変数ごとに最適値カードが表示されます。","공정":"工程","공정 최적값":"工程最適値","공정 최적값 계산이 끝났습니다.":"工程最適値の計算が完了しました。","공정 최적값 조회":"工程最適値照会","기간 안에 학습된 AI 모델 버전들의 성능 지표를 비교하는 화면입니다. 모델을 고르면 혼동 행렬과 ROC 곡선을 함께 보여 줍니다.":"期間内に学習されたAIモデルバージョンの性能指標を比較する画面です。モデルを選ぶと混同行列とROC曲線を表示します。","기간 안에 학습된 모델이 없습니다.":"期間内に学習されたモデルがありません。","기간 예측 {n}건 · 평균 정확도 {a}%":"期間予測 {n}件・平均精度 {a}%","날짜를 연도-월-일 형식으로 입력해 주세요.":"日付を年-月-日の形式で入力してください。","날짜를 확인해주세요":"日付を確認してください","놓친 NG":"見逃したNG","닫기":"閉じる","달력":"カレンダー","데이터 상세":"データ詳細","데이터 수":"データ数","데이터 시각화":"データ可視化","데이터 시각화(가공 값)와 비교해 순간 튐 · 끊김 같은 원본 이상을 확인합니다.":"データ可視化（加工値）と比較し、瞬間的な跳ね・途切れなど元データの異常を確認します。","데이터셋 크기":"データセットサイズ","라미네이션":"ラミネーション","라인":"ライン","라인 단위 예측 (설비 선택 없음)":"ライン単位の予測（設備選択なし）","로그아웃":"ログアウト","로그인":"ログイン","막대가 길수록(변수중요도), 상자가 오른쪽일수록(순열중요도) 중요한 변수입니다.":"棒が長いほど（変数重要度）、箱が右にあるほど（順列重要度）重要な変数です。","메뉴 접기":"メニューを折りたたむ","모니터링":"モニタリング","모델 학습에 쓰는 가공 데이터(1분 구간 평균 · 표준편차)를 학습 구간별로 확인하는 화면입니다. 위 표에서 구간을 고르면 아래 표에 변수 값 상세가 나옵니다.":"モデル学習に使う加工データ（1分区間の平均・標準偏差）を学習区間ごとに確認する画面です。上の表で区間を選ぶと下の表に変数値の詳細が表示されます。","모델 행을 누르면 아래에 혼동 행렬과 ROC 곡선이 그려집니다.":"モデル行を押すと下に混同行列とROC曲線が描かれます。","모델명":"モデル名","모델버전":"モデルバージョン","모델버전을 고르고 [조회]를 누릅니다.":"モデルバージョンを選び[照会]を押します。","모델을 선택해주세요.":"モデルを選択してください。","모델이 OK/NG를 판단할 때 어떤 변수를 중요하게 보는지 보여 주는 화면입니다. 변수 중요도와 순열 중요도 두 방식으로 봅니다.":"モデルがOK/NGを判断する際にどの変数を重視するかを示す画面です。変数重要度と順列重要度の2つの方法で見ます。","목표 양품 확률 99% 이상 · 변수별 최소 · 최대 허용 범위 안에서 유전 알고리즘으로 탐색한 제안값입니다. 설비 설정 변경은 공정 담당 승인 후 반영합니다.":"目標良品確率99%以上・変数ごとの最小〜最大許容範囲内で遺伝的アルゴリズムにより探索した提案値です。設備設定の変更は工程担当の承認後に反映します。","변수":"変数","변수 간 상관계수":"変数間の相関係数","변수 간 상관계수를 색 행렬로 보여 주는 화면입니다. 함께 오르내리는 변수를 찾아 원인 분석과 설정값 조정에 씁니다.":"変数間の相関係数を色の行列で示す画面です。連動する変数を見つけ、原因分析と設定値調整に使います。","변수 값을 섞었을 때 모델 성능(정확도)이 떨어진 정도입니다. 오른쪽일수록 중요한 변수입니다.":"変数の値をシャッフルしたときにモデル性能（精度）が下がった度合いです。右にあるほど重要な変数です。","변수중요도":"変数重要度","불일치":"不一致","비밀번호":"パスワード","사용 순서":"使い方","상관관계 히트맵":"相関ヒートマップ","상위 변수를 데이터 시각화 · 히트맵 화면에서 이어서 분석합니다.":"上位の変数をデータ可視化・ヒートマップ画面で続けて分析します。","색이 진한 칸을 찾아 두 변수의 관계를 확인합니다. 칸에 마우스를 올리면 값이 나옵니다.":"色の濃いセルを探して2変数の関係を確認します。セルにマウスを乗せると値が表示されます。","선택 {n}건":"選択 {n}件","선택하세요":"選択してください","선택한 설비의 최근 1시간 예측 결과를 보여 주는 감시 화면입니다. 가장 최근 구간의 AI 예측 · PLC 판정 · 일치 여부와 변수 평균의 흐름을 10초마다 갱신합니다.":"選択した設備の直近1時間の予測結果を表示する監視画面です。最新区間のAI予測・PLC判定・一致状況と変数平均の推移を10秒ごとに更新します。","설비 데이터로 품질을 먼저 예측하고, 양품 조건을 제안합니다.":"設備データで品質を先に予測し、良品条件を提案します。","설비 선택 상자에서 볼 설비를 고릅니다. 고르는 즉시 최근 1시간 결과를 불러옵니다.":"設備選択ボックスで設備を選びます。選ぶとすぐに直近1時間の結果を読み込みます。","설비 원본 태그 하나를 골라 트렌드 · 히스토그램 · 박스플롯으로 보는 화면입니다. 가공 전 값으로 설비 상태를 자세히 봅니다.":"設備の元タグを1つ選び、トレンド・ヒストグラム・箱ひげ図で見る画面です。加工前の値で設備状態を詳しく見ます。","설비명":"設備名","설비명, 시각화 방식, 시작일 · 종료일을 고릅니다.":"設備名・可視化方式・開始日・終了日を選びます。","설비명과 시작일 · 종료일을 고르고 [조회]를 누릅니다.":"設備名と開始日・終了日を選び[照会]を押します。","설비에서 수집한 원본 데이터를 일자별로 확인하는 화면입니다. 위 표에서 일자를 고르면 아래 표에 그날의 원본 값이 나옵니다.":"設備から収集した元データを日付ごとに確認する画面です。上の表で日付を選ぶと下の表にその日の元データが表示されます。","설비와 기간을 골라 일자별 예측 건수와 예측 정확도를 확인하는 화면입니다. AI 예측과 설비 PLC 판정을 비교해 하루 단위로 집계합니다.":"設備と期間を選び、日別の予測件数と予測精度を確認する画面です。AI予測と設備PLC判定を比較し、日単位で集計します。","순열중요도":"順列重要度","시각화":"可視化","시각화 방식, 설비명, 태그명, 시작일 · 종료일을 고릅니다.":"可視化方式・設備名・タグ名・開始日・終了日を選びます。","시연용 목업입니다. 화면의 데이터는 모두 가상 데이터입니다.":"デモ用モックアップです。画面のデータはすべて架空のデータです。","시작일":"開始日","시작일 · 종료일을 고르고 [조회]를 누르면 그 기간에 학습된 모델 목록이 나옵니다.":"開始日・終了日を選び[照会]を押すと、その期間に学習されたモデル一覧が表示されます。","시작일 · 종료일을 고르고 [조회]를 누르면 일자별 데이터 수와 OK · NG 건수가 나옵니다.":"開始日・終了日を選び[照会]を押すと、日別のデータ数とOK・NG件数が表示されます。","시작일 · 종료일을 고르고 [조회]를 누르면 학습 구간별 데이터 수와 OK · NG 건수가 나옵니다.":"開始日・終了日を選び[照会]を押すと、学習区間ごとのデータ数とOK・NG件数が表示されます。","실시간 데이터 트렌드":"リアルタイムデータトレンド","실시간 예측":"リアルタイム予測","실시간 예측 카드가 초록(OK)인지 빨강(NG)인지 확인합니다.":"リアルタイム予測カードが緑（OK）か赤（NG）かを確認します。","실시간 품질 예측":"リアルタイム品質予測","실제":"実際","아래 표에서 행을 골라 [엑셀 다운로드]로 저장합니다. 고른 행이 없으면 전체를 저장합니다.":"下の表で行を選び[Excelダウンロード]で保存します。選択した行がなければ全件を保存します。","아이디":"ID","아이디와 비밀번호를 입력하세요.":"IDとパスワードを入力してください。","알림":"通知","언어":"言語","엑셀 다운로드":"Excelダウンロード","연결 설비":"接続設備","연결된 설비":"接続された設備","연도-월-일":"年-月-日","열 머리글을 눌러 정렬하고, 정확도가 낮은 날을 찾아 원인을 살펴봅니다.":"列見出しを押して並べ替え、精度が低い日を見つけて原因を調べます。","예측":"予測","예측 · PLC · 검증으로 AI 예측과 설비 판정이 맞는지 봅니다.":"予測・PLC・検証でAI予測と設備判定が合っているかを確認します。","예측 · PLC 불일치":"予測・PLC不一致","예측정확도":"予測精度","오늘의 품질 예측 현황":"本日の品質予測状況","오탐률 (FPR)":"誤検知率（FPR）","오토버싱":"オートバッシング","오토솔더링":"オートソルダリング","왼쪽 큰 카드의 색으로 현재 예측을 확인합니다. 초록은 OK, 빨강은 NG입니다.":"左の大きなカードの色で現在の予測を確認します。緑はOK、赤はNGです。","원본 데이터 시각화":"元データ可視化","원본 데이터셋":"元データセット","위 표에서 구간 행을 누르면 아래 표에 그 구간의 변수 값이 나옵니다.":"上の表で区間の行を押すと下の表にその区間の変数値が表示されます。","위 표에서 일자 행을 누르면 아래 표에 그날의 원본 데이터가 나옵니다.":"上の表で日付の行を押すと下の表にその日の元データが表示されます。","위 표에서 행을 누르면 상세 데이터가 나옵니다.":"上の表で行を押すと詳細データが表示されます。","일시":"日時","일시 · 예측 · PLC · 검증 카드로 최근 구간 시각과 판정 일치 여부를 봅니다.":"日時・予測・PLC・検証カードで最新区間の時刻と判定の一致を確認します。","일자":"日付","일자별 예측 이력":"日別予測履歴","일자별 원본 데이터":"日別元データ","일자별 전체 예측 건수, NG 예측 건수, PLC NG 건수, 예측 정확도(%)를 확인합니다.":"日別の全予測件数・NG予測件数・PLC NG件数・予測精度（%）を確認します。","일치":"一致","일치하는 화면이 없습니다.":"一致する画面がありません。","잘못 잡은 NG":"誤ったNG","잡아낸 NG":"検出したNG","저장할 데이터가 없습니다. 먼저 [조회]를 누르세요.":"保存するデータがありません。先に[照会]を押してください。","전체 선택":"すべて選択","전체예측건수":"全予測件数","정상":"正常","정상 판정":"正常判定","조회":"照会","조회 결과가 없습니다. 조건을 고르고 [조회]를 누르세요.":"照会結果がありません。条件を選び[照会]を押してください。","조회 조건을 고르고 [조회]를 누릅니다. 계산하는 동안 진행 표시가 나옵니다.":"照会条件を選び[照会]を押します。計算中は進行表示が出ます。","조회 조건을 초기화했습니다.":"照会条件を初期化しました。","조회일":"照会日","종료일":"終了日","종료일은 오늘 이후로 고를 수 없습니다.":"終了日に今日より後の日付は選べません。","중앙값":"中央値","지금 갱신":"今すぐ更新","초기화":"初期化","총 {n}건":"計 {n}件","총 데이터 수":"総データ数","최근 1시간 NG 예측이 없습니다.":"直近1時間のNG予測はありません。","최근 1시간 · 마지막 {t}":"直近1時間・最終 {t}","최근 1시간 데이터 없음":"直近1時間のデータなし","최근 1시간 예측":"直近1時間の予測","최근 1시간 판정":"直近1時間の判定","최대":"最大","최소":"最小","최신 데이터로 갱신했습니다.":"最新データに更新しました。","최적값":"最適値","컬럼명 (여러 개 선택)":"カラム名（複数選択）","컬럼명 칩을 눌러 보고 싶은 변수를 골라 트렌드 그래프에 겹쳐 봅니다.":"カラム名のチップを押して見たい変数を選び、トレンドグラフに重ねて表示します。","컬럼명을 하나 이상 고르세요.":"カラム名を1つ以上選んでください。","태그명":"タグ名","태빙":"タビング","태빙 8 · 라미네이션 3 · 라인 2":"タビング8・ラミネーション3・ライン2","태빙 · 라미네이션 패널은 선택 상자에서 볼 설비를 고릅니다. 오토솔더링 · 오토버싱은 라인 단위입니다.":"タビング・ラミネーションのパネルは選択ボックスで設備を選びます。オートソルダリング・オートバッシングはライン単位です。","태빙 · 오토솔더링 · 오토버싱 · 라미네이션 4개 공정의 설비 데이터를 AI가 1분 구간마다 판정합니다.":"タビング・オートソルダリング・オートバッシング・ラミネーションの4工程の設備データをAIが1分区間ごとに判定します。","태양광 모듈 AI 품질예측":"太陽光モジュールAI品質予測","테마 전환":"テーマ切替","통합 대시보드":"統合ダッシュボード","트렌드로 흐름을, 히스토그램으로 분포를, 박스플롯으로 범위와 이상치를 확인합니다.":"トレンドで推移を、ヒストグラムで分布を、箱ひげ図で範囲と外れ値を確認します。","특성 중요도":"特徴量重要度","특성 중요도 상위 변수와 강하게 묶인 변수를 함께 관리 대상으로 봅니다.":"特徴量重要度の上位変数と強く結びついた変数も管理対象として見ます。","특성중요도":"特徴量重要度","특성중요도 상자에서 변수중요도 또는 순열중요도를 고릅니다.":"特徴量重要度ボックスで変数重要度または順列重要度を選びます。","파랑: 같은 방향 · 빨강: 반대 방향":"青：同じ方向・赤：逆方向","판정":"判定","패널 제목을 누르면 해당 공정의 실시간 품질 예측 화면이 열립니다.":"パネルのタイトルを押すと、その工程のリアルタイム品質予測画面が開きます。","평균":"平均","표시할 데이터가 없습니다.":"表示するデータがありません。","표준편차":"標準偏差","품질 담당자":"品質担当者","품질 예측 이력":"品質予測履歴","품질팀 · 조회 권한":"品質チーム・照会権限","필요한 행을 골라 [엑셀 다운로드]로 저장합니다.":"必要な行を選び[Excelダウンロード]で保存します。","학습 구간":"学習区間","학습 데이터셋":"学習データセット","학습(가공) 데이터를 트렌드 차트 · 히스토그램 · 박스플롯으로 바꿔 보며 변수의 흐름과 분포를 확인하는 화면입니다.":"学習（加工）データをトレンドチャート・ヒストグラム・箱ひげ図に切り替えて、変数の推移と分布を確認する画面です。","학습된 AI 모델로 양품 확률이 가장 높아지는(목표 99% 이상) 설비 설정값을 계산해 보여 주는 화면입니다. 변수마다 허용 범위(최소 · 최대) 안에서만 찾습니다.":"学習済みAIモデルで良品確率が最も高くなる（目標99%以上）設備設定値を計算して示す画面です。変数ごとの許容範囲（最小・最大）内でのみ探索します。","한":"한","한국어":"한국어","허용 범위":"許容範囲","현재값":"現在値","현재값과 최적값의 차이를 보고 조정할 변수를 확인합니다.":"現在値と最適値の差を見て調整する変数を確認します。","혼동 행렬에서 놓친 NG(실제 NG · 예측 OK) 건수를 확인합니다.":"混同行列で見逃したNG（実際NG・予測OK）の件数を確認します。","화면 도움말":"画面ヘルプ","화면 이름이나 화면 ID로 찾기 (예: 최적값, LM-03)":"画面名や画面IDで検索（例：最適値、LM-03）","확인":"確認"}};
+const TODAY = new Date(2026, 9, 29);
+
+/* ---------- 다국어: 한국어 원문을 키로 쓰고, 번역이 없으면 원문을 보여 준다 (ARCON 방식) ---------- */
+const LANGS = [{id:'ko',label:'한국어',short:'한'},{id:'en',label:'English',short:'EN'},{id:'ja',label:'日本語',short:'日'}];
+let LANG = (()=>{ try{ const v=localStorage.getItem('pvaiq.lang'); if(['ko','en','ja'].includes(v)) return v; }catch(e){} const n=(navigator.language||'ko').toLowerCase(); return n.startsWith('ja')?'ja':n.startsWith('en')?'en':'ko'; })();
+document.documentElement.lang = LANG;
+function t(ko, vars){ ko=String(ko); let s = LANG==='ko' ? ko : (I18N[LANG][ko] ?? ko); if (vars) s = s.replace(/\{(\w+)\}/g,(m,k)=>k in vars?String(vars[k]):m); return s; }
+function setLang(l){ LANG=l; try{localStorage.setItem('pvaiq.lang',l)}catch(e){} document.documentElement.lang=l; drawLogin(); if(!$('#app').classList.contains('hidden')) render(); }
+
+/* ---------- 유틸 ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function hash(s){let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let a=hash(seed);return()=>{a|=0;a=a+0x6D2B79F5|0;let x=Math.imul(a^a>>>15,1|a);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296}}
+const gauss = r => { let u=0,v=0; while(!u)u=r(); while(!v)v=r(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
+const fmt = n => Number(n).toLocaleString('en-US');
+const pad = n => String(n).padStart(2,'0');
+const ds = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const addD = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const pdate = s => { const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s).trim()); if(!m) return null; const d=new Date(+m[1],+m[2]-1,+m[3]); return d.getMonth()===+m[2]-1?d:null; };
+const dayList = (a, b) => { const out=[]; for(let d=new Date(a); d<=b && out.length<366; d=addD(d,1)) out.push(new Date(d)); return out; };
+const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const nowAt = () => { const n=new Date(); const d=new Date(TODAY); d.setHours(n.getHours(), n.getMinutes(), 0, 0); return d; };
+function toast(msg){const d=document.createElement('div');d.textContent=msg;$('#toast').appendChild(d);setTimeout(()=>d.remove(),2600)}
+const IC = {
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  link:'<path d="M3 12h4l2-5 3 10 2-5h7"/>',
+  flame:'<path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-10-2 2-2 4-3 5-1-1-2-2-2-4-3 3-5 6-5 9 0 4 3 7 7 7z"/>',
+  bolt:'<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',
+  layers:'<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
+  panel:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20M2 15h20M9 4v16M15 4v16"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  globe:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  menu:'<path d="M3 6h18M3 12h18M3 18h18"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  ok:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  dl:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  spin:'<path d="M21 12a9 9 0 1 1-6.2-8.6"/>',
+};
+const icon = (k, st='') => `<svg class="i" viewBox="0 0 24 24" style="${st}">${IC[k]||IC.layers}</svg>`;
+
+/* ---------- 공정 · 변수 정의 (가상 데이터, 실제 기업명 없음) ---------- */
+const range = (n, f) => Array.from({length:n}, (_, i) => f(i+1));
+const PROC = [
+  {k:'TB', name:'태빙', sub:'Tabber · 스트링 형성', icon:'link', equips:range(4,i=>[`TABBER0${i}A`,`TABBER0${i}B`]).flat().sort(),
+   tags:[...range(10,i=>`BOTTOMPLATE${pad(i)}_TEMP`), 'TIME_PER_STRING'], optBy:'equip'},
+  {k:'AS', name:'오토솔더링', sub:'Auto Soldering · 자동 납땜', icon:'flame', equips:null,
+   tags:['MAIN_Z_LEFT','MAIN_Z_MIDDLE','MAIN_Z_RIGHT', ...range(6,i=>`SUB${i}_CYCLE_TIME`), ...range(6,i=>`SUB${i}_MAX_TEMP`), ...range(4,i=>`SUB${i}_PV_TEMP`)], optBy:'date'},
+  {k:'AB', name:'오토버싱', sub:'Auto Bussing · 버스바 연결', icon:'bolt', equips:null,
+   tags:['B','F','M'].flatMap(c=>range(6,i=>`${c}${i}_WELDING_HEAD_CV`)), optBy:'none'},
+  {k:'LM', name:'라미네이션', sub:'Lamination · 진공 압착', icon:'layers', equips:['LAMI01','LAMI02','LAMI03'],
+   tags:['AIR_PRESSURE', ...[1,2].flatMap(l=>[`LINE${l}_DOWN_VACUUM`,`LINE${l}_HEATER_TANK`, ...range(5,i=>`LINE${l}_TEMP${i}`), `LINE${l}_UPPER_VACUUM`])], optBy:'equip'},
+];
+const P = Object.fromEntries(PROC.map(p => [p.k, p]));
+const feat = tag => tag==='TIME_PER_STRING' ? 'TIME_PER_STRINGs' : tag;
+PROC.forEach(p => { p.means = p.tags.map(x => feat(x)+'_mean'); p.feats = p.tags.flatMap(x => tag2feats(x)); });
+function tag2feats(x){ return x==='TIME_PER_STRING' ? ['TIME_PER_STRINGs_mean'] : [x+'_std', x+'_mean']; }
+function base(tag){
+  if (/BOTTOMPLATE/.test(tag)) return {m:182+(hash(tag)%5)-2, s:1.4, d:1};
+  if (/TIME_PER_STRING/.test(tag)) return {m:21.4, s:.6, d:2};
+  if (/MAIN_Z/.test(tag)) return {m:12.5, s:.06, d:3};
+  if (/CYCLE_TIME/.test(tag)) return {m:3.2, s:.08, d:2};
+  if (/MAX_TEMP/.test(tag)) return {m:382+(hash(tag)%7)-3, s:3.2, d:1};
+  if (/PV_TEMP/.test(tag)) return {m:351+(hash(tag)%5)-2, s:2.6, d:1};
+  if (/WELDING_HEAD_CV/.test(tag)) return {m:1.82, s:.05, d:3};
+  if (/AIR_PRESSURE/.test(tag)) return {m:.552, s:.008, d:3};
+  if (/VACUUM/.test(tag)) return {m:96.5, s:.7, d:1};
+  if (/HEATER_TANK/.test(tag)) return {m:151, s:1.2, d:1};
+  return {m:145+(hash(tag)%6)-3, s:1.6, d:1};
+}
+const unitOf = f => /_std$/.test(f) ? null : base(f.replace(/_mean$/,'').replace('TIME_PER_STRINGs','TIME_PER_STRING'));
+function fval(f, r, ng){ const tag=f.replace(/_(mean|std)$/,'').replace('TIME_PER_STRINGs','TIME_PER_STRING'), b=base(tag);
+  if (/_std$/.test(f)) return +(Math.abs(b.s*(.35+.25*r()))*(ng?1.8:1)).toFixed(b.d+1);
+  return +(b.m + gauss(r)*b.s*.35 + (ng? b.s*(r()<.5?-1:1)*(1.2+r()) : 0)).toFixed(b.d); }
+
+/* 1분 구간 예측 기록 (설비·시각별로 고정된 가상값) */
+function minuteRec(pk, eq, d){
+  const r = rng(pk+eq+d.getTime()), ngp = r() < .055, plcNg = r() < .93 ? ngp : !ngp;
+  const rec = {TO_TIME:d, pred:ngp?'NG':'OK', plc:plcNg?'NG':'OK'};
+  P[pk].means.forEach(f => rec[f] = fval(f, r, ngp));
+  return rec;
+}
+function lastHour(pk, eq){ const end=nowAt(); return range(60, i => minuteRec(pk, eq||'LINE', new Date(end.getTime() - (60-i)*60000))); }
+
+/* ---------- 화면 정의 ---------- */
+const TYPES = [
+  {n:'01', name:'실시간 품질 예측', purpose:'선택한 설비의 최근 1시간 예측 결과를 보여 주는 감시 화면입니다. 가장 최근 구간의 AI 예측 · PLC 판정 · 일치 여부와 변수 평균의 흐름을 10초마다 갱신합니다.',
+   steps:['설비 선택 상자에서 볼 설비를 고릅니다. 고르는 즉시 최근 1시간 결과를 불러옵니다.','왼쪽 큰 카드의 색으로 현재 예측을 확인합니다. 초록은 OK, 빨강은 NG입니다.','일시 · 예측 · PLC · 검증 카드로 최근 구간 시각과 판정 일치 여부를 봅니다.','컬럼명 칩을 눌러 보고 싶은 변수를 골라 트렌드 그래프에 겹쳐 봅니다.']},
+  {n:'02', name:'품질 예측 이력', purpose:'설비와 기간을 골라 일자별 예측 건수와 예측 정확도를 확인하는 화면입니다. AI 예측과 설비 PLC 판정을 비교해 하루 단위로 집계합니다.',
+   steps:['설비명과 시작일 · 종료일을 고르고 [조회]를 누릅니다.','일자별 전체 예측 건수, NG 예측 건수, PLC NG 건수, 예측 정확도(%)를 확인합니다.','열 머리글을 눌러 정렬하고, 정확도가 낮은 날을 찾아 원인을 살펴봅니다.','[엑셀 다운로드]로 결과를 저장하고, [초기화]로 조건을 되돌립니다.']},
+  {n:'03', name:'공정 최적값', purpose:'학습된 AI 모델로 양품 확률이 가장 높아지는(목표 99% 이상) 설비 설정값을 계산해 보여 주는 화면입니다. 변수마다 허용 범위(최소 · 최대) 안에서만 찾습니다.',
+   steps:['조회 조건을 고르고 [조회]를 누릅니다. 계산하는 동안 진행 표시가 나옵니다.','계산이 끝나면 변수마다 최적값 카드가 채워집니다.','현재값과 최적값의 차이를 보고 조정할 변수를 확인합니다.','[엑셀 다운로드]로 결과를 저장해 설정 변경 검토 자료로 씁니다.']},
+  {n:'04', name:'AI 성능', purpose:'기간 안에 학습된 AI 모델 버전들의 성능 지표를 비교하는 화면입니다. 모델을 고르면 혼동 행렬과 ROC 곡선을 함께 보여 줍니다.',
+   steps:['시작일 · 종료일을 고르고 [조회]를 누르면 그 기간에 학습된 모델 목록이 나옵니다.','AUC · Accuracy · F1 · Recall · Precision을 비교합니다.','모델 행을 누르면 아래에 혼동 행렬과 ROC 곡선이 그려집니다.','혼동 행렬에서 놓친 NG(실제 NG · 예측 OK) 건수를 확인합니다.']},
+  {n:'05', name:'특성 중요도', purpose:'모델이 OK/NG를 판단할 때 어떤 변수를 중요하게 보는지 보여 주는 화면입니다. 변수 중요도와 순열 중요도 두 방식으로 봅니다.',
+   steps:['특성중요도 상자에서 변수중요도 또는 순열중요도를 고릅니다.','모델버전을 고르고 [조회]를 누릅니다.','막대가 길수록(변수중요도), 상자가 오른쪽일수록(순열중요도) 중요한 변수입니다.','상위 변수를 데이터 시각화 · 히트맵 화면에서 이어서 분석합니다.']},
+  {n:'06', name:'학습 데이터셋', purpose:'모델 학습에 쓰는 가공 데이터(1분 구간 평균 · 표준편차)를 학습 구간별로 확인하는 화면입니다. 위 표에서 구간을 고르면 아래 표에 변수 값 상세가 나옵니다.',
+   steps:['시작일 · 종료일을 고르고 [조회]를 누르면 학습 구간별 데이터 수와 OK · NG 건수가 나옵니다.','위 표에서 구간 행을 누르면 아래 표에 그 구간의 변수 값이 나옵니다.','아래 표에서 행을 골라 [엑셀 다운로드]로 저장합니다. 고른 행이 없으면 전체를 저장합니다.','[초기화]로 두 표를 비웁니다.']},
+  {n:'07', name:'원본 데이터셋', purpose:'설비에서 수집한 원본 데이터를 일자별로 확인하는 화면입니다. 위 표에서 일자를 고르면 아래 표에 그날의 원본 값이 나옵니다.',
+   steps:['시작일 · 종료일을 고르고 [조회]를 누르면 일자별 데이터 수와 OK · NG 건수가 나옵니다.','위 표에서 일자 행을 누르면 아래 표에 그날의 원본 데이터가 나옵니다.','필요한 행을 골라 [엑셀 다운로드]로 저장합니다.']},
+  {n:'08', name:'데이터 시각화', purpose:'학습(가공) 데이터를 트렌드 차트 · 히스토그램 · 박스플롯으로 바꿔 보며 변수의 흐름과 분포를 확인하는 화면입니다.',
+   steps:['설비명, 시각화 방식, 시작일 · 종료일을 고릅니다.','[조회]를 누르면 변수마다 그래프가 하나씩 그려집니다.','트렌드로 흐름을, 히스토그램으로 분포를, 박스플롯으로 범위와 이상치를 확인합니다.','[초기화]로 조건과 그래프를 지웁니다.']},
+  {n:'09', name:'원본 데이터 시각화', purpose:'설비 원본 태그 하나를 골라 트렌드 · 히스토그램 · 박스플롯으로 보는 화면입니다. 가공 전 값으로 설비 상태를 자세히 봅니다.',
+   steps:['시각화 방식, 설비명, 태그명, 시작일 · 종료일을 고릅니다.','[조회]를 누르면 선택한 태그의 원본 값이 큰 그래프로 그려집니다.','데이터 시각화(가공 값)와 비교해 순간 튐 · 끊김 같은 원본 이상을 확인합니다.']},
+  {n:'10', name:'상관관계 히트맵', purpose:'변수 간 상관계수를 색 행렬로 보여 주는 화면입니다. 함께 오르내리는 변수를 찾아 원인 분석과 설정값 조정에 씁니다.',
+   steps:['설비명과 시작일 · 종료일을 고르고 [조회]를 누릅니다.','색이 진한 칸을 찾아 두 변수의 관계를 확인합니다. 칸에 마우스를 올리면 값이 나옵니다.','특성 중요도 상위 변수와 강하게 묶인 변수를 함께 관리 대상으로 봅니다.']},
+];
+const DASH = {id:'DSH-01', name:'통합 대시보드', purpose:'4개 공정의 실시간 품질 예측을 한 화면에 모은 시작 화면입니다. 공정마다 가장 최근 구간의 예측 · PLC 판정 · 일치 여부와 데이터 트렌드를 1분마다 갱신합니다.',
+  steps:['태빙 · 라미네이션 패널은 선택 상자에서 볼 설비를 고릅니다. 오토솔더링 · 오토버싱은 라인 단위입니다.','실시간 예측 카드가 초록(OK)인지 빨강(NG)인지 확인합니다.','예측 · PLC · 검증으로 AI 예측과 설비 판정이 맞는지 봅니다.','패널 제목을 누르면 해당 공정의 실시간 품질 예측 화면이 열립니다.']};
+const SCREENS = {}; PROC.forEach(p => TYPES.forEach(ty => { const id=`${p.k}-${ty.n}`; SCREENS[id] = {...ty, id, p}; }));
+const titleOf = k => k==='DSH-01' ? t(DASH.name) : t(SCREENS[k].name);
+
+/* ---------- 메뉴 · 상단 바 · 탭 ---------- */
+let tabs = ['DSH-01'], cur = 'DSH-01'; const openGroups = new Set(['TB']);
+const STATE = {}; const st = k => (STATE[k] ||= {});
+function drawRail(){
+  const cs = SCREENS[cur];
+  $('#rail').innerHTML = `
+    <div class="brand"><span class="logo">${icon('panel')}</span><span class="bt"><b>PV-AIQ</b><span>${t('태양광 모듈 AI 품질예측')}</span></span></div>
+    <div class="tenant"><span class="tl1"><span>${t('연결된 설비')}</span><span class="okk">${icon('ok','width:12px;height:12px')}${t('정상')}</span></span><span class="tl2">${t('태빙 8 · 라미네이션 3 · 라인 2')}</span></div>
+    <nav class="nav">
+      <div class="sec">${t('모니터링')}</div>
+      <div class="grp ${cur==='DSH-01'?'has':''}"><button data-home="1">${icon('grid')}<span class="nl"><span>${t('통합 대시보드')}</span><small>${t('4개 공정 실시간 예측')}</small></span></button></div>
+      <div class="sec">${t('공정')}</div>
+      ${PROC.map(p => `<div class="grp ${openGroups.has(p.k)?'open':''} ${cs&&cs.p.k===p.k?'has':''}" data-g="${p.k}">
+        <button>${icon(p.icon)}<span class="nl"><span>${t(p.name)}</span><small>${t(p.sub)}</small></span><svg class="i car" viewBox="0 0 24 24">${IC.chev}</svg></button>
+        <div class="items">${TYPES.map(ty=>{const id=`${p.k}-${ty.n}`;return `<button class="mi ${id===cur?'on':''}" data-k="${id}" title="${id}">${t(ty.name)}</button>`}).join('')}</div></div>`).join('')}
+    </nav>
+    <div class="scope"><div class="who"><span class="avatar">Q</span><span class="wn"><b>${t('품질 담당자')}</b><small>${t('품질팀 · 조회 권한')}</small></span></div><button class="lo" id="logout">${icon('logout','width:14px;height:14px')}${t('로그아웃')}</button></div>`;
+  $$('.grp[data-g]>button').forEach(b => b.onclick = () => { const g=b.parentElement; g.classList.toggle('open'); g.classList.contains('open')?openGroups.add(g.dataset.g):openGroups.delete(g.dataset.g); });
+  $$('.mi').forEach(b => b.onclick = () => { openScreen(b.dataset.k); document.body.classList.remove('navopen'); });
+  $('[data-home]').onclick = () => { openScreen('DSH-01'); document.body.classList.remove('navopen'); };
+  $('#logout').onclick = () => { stopTimers(); $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); drawLogin(); };
+}
+function drawTop(){
+  const s = SCREENS[cur];
+  $('#topbar').innerHTML = `
+    <button class="iconbtn" id="fold" title="${t('메뉴 접기')}">${icon('menu')}</button>
+    <div class="crumb">${s?`<span>${t(s.p.name)}</span>${icon('chev')}<b>${t(s.name)}</b>`:`<b>${t('통합 대시보드')}</b>`}</div>
+    <form class="tsearch" id="tsearch" autocomplete="off">${icon('search')}<input id="q" placeholder="${esc(t('화면 이름이나 화면 ID로 찾기 (예: 최적값, LM-03)'))}"><div class="sres hidden" id="sres"></div></form>
+    <div class="tacts">
+      <div class="langsw" role="group" aria-label="${t('언어')}">${icon('globe')}${LANGS.map(l=>`<button type="button" class="${l.id===LANG?'on':''}" data-lang="${l.id}" title="${l.label}">${l.short}</button>`).join('')}</div>
+      <button class="iconbtn" id="theme" title="${t('테마 전환')}">${document.documentElement.dataset.theme==='light'?icon('moon'):icon('sun')}</button>
+      <button class="iconbtn" id="bell" title="${t('알림')}">${icon('bell')}<i class="dot"></i></button>
+    </div>`;
+  $('#fold').onclick = () => innerWidth<=920 ? document.body.classList.toggle('navopen') : document.body.classList.toggle('fold');
+  $$('[data-lang]',$('#topbar')).forEach(b => b.onclick = () => setLang(b.dataset.lang));
+  $('#theme').onclick = () => { const n = document.documentElement.dataset.theme==='light'?'dark':'light'; document.documentElement.dataset.theme=n; try{localStorage.setItem('pvaiq.theme',n)}catch(e){} drawTop(); render(true); };
+  $('#bell').onclick = notices;
+  const q=$('#q'), box=$('#sres');
+  const all = [{id:'DSH-01', name:DASH.name, grp:'모니터링'}, ...Object.values(SCREENS).map(s=>({id:s.id, name:s.name, grp:s.p.name}))];
+  const hits = () => { const raw=q.value.trim(), v=raw.toLowerCase(); if(!v) return []; return all.filter(s => s.id.toLowerCase().includes(v) || s.name.includes(raw) || t(s.name).toLowerCase().includes(v) || s.grp.includes(raw) || t(s.grp).toLowerCase().includes(v)).slice(0,12); };
+  const go = k => { q.value=''; box.classList.add('hidden'); openScreen(k); };
+  q.oninput = () => { const h=hits(); box.classList.toggle('hidden', !q.value.trim()); box.innerHTML = h.length ? h.map((s,i)=>`<button type="button" class="${i===0?'on':''}" data-k="${s.id}"><span>${esc(t(s.name))}</span><small>${esc(t(s.grp))} · ${s.id}</small></button>`).join('') : `<div class="empty" style="padding:14px">${t('일치하는 화면이 없습니다.')}</div>`; $$('button',box).forEach(b=>b.onmousedown=e=>{e.preventDefault();go(b.dataset.k)}); };
+  q.onblur = () => setTimeout(()=>box.classList.add('hidden'),150);
+  const sub = e => { e.preventDefault(); const h=hits(); if(h[0]) go(h[0].id); else toast(t('일치하는 화면이 없습니다.')); };
+  $('#tsearch').onsubmit = sub; q.onkeydown = e => { if(e.key==='Enter') sub(e); };
+}
+function drawTabs(){
+  $('#wtabs').innerHTML = tabs.map(k => `<button class="wtab ${k===cur?'on':''}" data-k="${k}">${esc(titleOf(k))}${k==='DSH-01'?'':`<span class="x" data-x="1" title="${t('닫기')}">×</span>`}</button>`).join('');
+  $$('.wtab').forEach(b => b.onclick = e => { const k=b.dataset.k; if (e.target.dataset.x){ tabs=tabs.filter(x=>x!==k); delete STATE[k]; if(cur===k) cur=tabs[tabs.length-1]; } else cur=k; render(); });
+}
+function openScreen(k){ if(k!=='DSH-01' && !SCREENS[k]) return; if(!tabs.includes(k)) tabs.push(k); if(tabs.length>10){ const drop=tabs.splice(1,1)[0]; delete STATE[drop]; } cur=k; if(SCREENS[k]) openGroups.add(SCREENS[k].p.k); render(); }
+let timers = [];
+function stopTimers(){ timers.forEach(clearInterval); timers=[]; }
+function render(keepScroll){
+  stopTimers();
+  drawRail(); drawTop(); drawTabs();
+  const v=$('#view'), y=scrollY; v.innerHTML='';
+  v.appendChild(cur==='DSH-01' ? dashboard() : SCREEN_FN[SCREENS[cur].n](SCREENS[cur]));
+  if (keepScroll) scrollTo(0,y); else scrollTo(0,0);
+}
+
+/* ---------- 공통 조각 ---------- */
+function dinp(val, attrs=''){
+  const ph = t('연도-월-일');
+  return `<span class="dwrap"><input class="input" type="text" inputmode="numeric" autocomplete="off" value="${val}" placeholder="${esc(ph)}" maxlength="10" ${attrs}><button type="button" class="dpk" tabindex="-1" aria-label="${esc(t('달력'))}"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" fill="none"/></svg></button><input class="dhid" type="date" tabindex="-1" aria-hidden="true"></span>`;
+}
+document.addEventListener('click', e => { const b=e.target.closest('.dpk'); if(!b) return; e.preventDefault(); const w=b.parentElement, tx=w.querySelector('.input'), h=w.querySelector('.dhid'); h.value=pdate(tx.value)?tx.value:''; h.onchange=()=>{ tx.value=h.value; tx.dispatchEvent(new Event('change',{bubbles:true})); }; try{ h.showPicker(); }catch(_){ h.focus(); h.click(); } });
+document.addEventListener('blur', e => { const el=e.target; if(!el.closest||!el.closest('.dwrap')||!el.classList.contains('input')) return; const d=el.value.replace(/\D/g,''); if(d.length>=8) el.value=`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`; }, true);
+const sel = (name, opts, val, attrs='') => `<select class="input" data-n="${name}" ${attrs}>${opts.map(o=>{const [v,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(v)}" ${v===val?'selected':''}>${esc(t(l))}</option>`}).join('')}</select>`;
+const fld = (label, inner) => `<label class="fld">${esc(t(label))}${inner}</label>`;
+function head(s, extra=''){
+  const id = s.id, grp = s.p ? s.p.name : '모니터링';
+  return `<div class="head"><div class="ttl"><div class="ey">${icon(s.p?s.p.icon:'grid')}<span>${esc(t(grp))}</span><span class="code">${id}</span></div><h1>${esc(t(s.name))}</h1><p class="lede">${esc(t(s.purpose))}</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${extra}<button type="button" class="btn" data-help="1">${icon('help')}${t('화면 도움말')}</button></div></div>`;
+}
+function help(s){
+  modal(t('{s} 도움말',{s:t(s.name)}), `<p class="lede" style="margin:0">${esc(t(s.purpose))}</p><h2>${t('사용 순서')}</h2><ol>${s.steps.map(x=>`<li>${esc(t(x))}</li>`).join('')}</ol>`, `<button type="button" class="btn primary" data-close="1">${t('확인')}</button>`);
+}
+function modal(title, body, foot, size=''){
+  const m=$('#mask'); m.classList.remove('hidden');
+  m.innerHTML = `<div class="modal ${size}" role="dialog"><div class="modal-h"><h3>${esc(title)}</h3><button type="button" class="iconbtn x" data-close="1" title="${t('닫기')}">${icon('x')}</button></div><div class="modal-b">${body}</div><div class="modal-f">${foot}</div></div>`;
+  const close = () => { m.classList.add('hidden'); m.innerHTML=''; };
+  m.onclick = e => { if (e.target===m || e.target.closest('[data-close]')) close(); };
+  return {el:m.firstElementChild, close};
+}
+function busy(ms, done){ const b=document.createElement('div'); b.className='busy'; b.innerHTML=`<div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">${IC.spin}</svg>${t('계산 중입니다...')}</div>`; document.body.appendChild(b); setTimeout(()=>{ b.remove(); done(); }, ms); }
+function csv(name, cols, rows){
+  const q = v => { const s=String(v??''); return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s; };
+  const body = '﻿'+[cols.map(c=>q(t(c))), ...rows.map(r=>cols.map(c=>q(r[c])))].map(r=>r.join(',')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([body],{type:'text/csv;charset=utf-8'})); a.download=`${name}_${ds(TODAY)}.csv`; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+  toast(t('{n}건을 엑셀(CSV) 파일로 저장했습니다.',{n:fmt(rows.length)}));
+}
+function readDates(root){
+  const a=pdate($('[data-n=start]',root)?.value), b=pdate($('[data-n=end]',root)?.value);
+  if(!a||!b){ toast(t('날짜를 연도-월-일 형식으로 입력해 주세요.')); return null; }
+  if(a>b){ toast(t('날짜를 확인해주세요')); return null; }
+  if(b>TODAY){ toast(t('종료일은 오늘 이후로 고를 수 없습니다.')); return null; }
+  return [a,b];
+}
+const panel = (title, inner, meta='') => `<section class="panel"><header><h2>${esc(t(title))}</h2>${meta?`<span class="meta">${meta}</span>`:''}</header><div class="pb">${inner}</div></section>`;
+const emptyBox = msg => `<div class="empty">${esc(t(msg))}</div>`;
+
+/* 표: 정렬 · 페이지 · 행 선택 */
+function table(root, mount, cols, rows, opts={}){
+  const S = {sort:null, dir:1, page:0, sel:opts.sel||new Set(), active:opts.active};
+  const per = opts.per || 12;
+  const draw = () => {
+    const el = $(mount, root); if(!el) return;
+    if(!rows.length){ el.innerHTML = emptyBox(opts.empty || '조회 결과가 없습니다. 조건을 고르고 [조회]를 누르세요.'); return; }
+    let rs = rows.map((r,i)=>({r,i}));
+    if (S.sort!==null){ const c=cols[S.sort]; rs.sort((a,b)=>{const x=a.r[c],y=b.r[c]; return (typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y)))*S.dir;}); }
+    const pages = Math.max(1, Math.ceil(rs.length/per)); S.page=Math.min(S.page,pages-1);
+    const view = rs.slice(S.page*per, S.page*per+per);
+    el.innerHTML = `<div class="tablewrap ${opts.short?'short':''}"><table class="g"><thead><tr>${opts.check?`<th class="ck"><input type="checkbox" data-all="1" aria-label="${t('전체 선택')}"></th>`:''}<th class="rn">#</th>${cols.map((c,i)=>`<th data-s="${i}" class="${typeof rows[0][c]==='number'?'n':''}">${esc(t(c))}${S.sort===i?`<span class="srt">${S.dir>0?'▲':'▼'}</span>`:''}</th>`).join('')}</tr></thead>
+      <tbody>${view.map(({r,i})=>`<tr data-i="${i}" class="${S.active===i||S.sel.has(i)?'sel':''}">${opts.check?`<td class="ck"><input type="checkbox" data-c="${i}" ${S.sel.has(i)?'checked':''}></td>`:''}<td class="rn">${i+1}</td>${cols.map(c=>{const v=r[c];return `<td class="${typeof v==='number'?'n':''}">${opts.cell?opts.cell(c,v,r):esc(typeof v==='number'?fmt(v):t(v))}</td>`}).join('')}</tr>`).join('')}</tbody></table></div>
+      <div class="gfoot"><span>${t('총 {n}건',{n:fmt(rows.length)})}${opts.check?` · ${t('선택 {n}건',{n:S.sel.size})}`:''}</span><div class="pg">${pages>1?Array.from({length:Math.min(pages,9)},(_,p)=>`<button type="button" class="${p===S.page?'on':''}" data-p="${p}">${p+1}</button>`).join(''):''}</div></div>`;
+    $$('th[data-s]',el).forEach(th=>th.onclick=()=>{const i=+th.dataset.s; S.dir = S.sort===i?-S.dir:1; S.sort=i; draw();});
+    $$('[data-p]',el).forEach(b=>b.onclick=()=>{S.page=+b.dataset.p; draw();});
+    $$('[data-c]',el).forEach(c=>c.onclick=e=>{e.stopPropagation(); const i=+c.dataset.c; c.checked?S.sel.add(i):S.sel.delete(i); draw();});
+    const all=$('[data-all]',el); if(all) all.onclick=()=>{ if(all.checked) rows.forEach((_,i)=>S.sel.add(i)); else S.sel.clear(); draw(); };
+    $$('tbody tr',el).forEach(tr=>tr.onclick=()=>{ const i=+tr.dataset.i; if(opts.onRow){ S.active=i; draw(); opts.onRow(rows[i], i); } else if(opts.check){ S.sel.has(i)?S.sel.delete(i):S.sel.add(i); draw(); } });
+  };
+  draw(); return S;
+}
+
+/* ---------- 차트 (SVG) ---------- */
+const PAL = ['#38BDF8','#34D399','#FBBF24','#A78BFA','#FB7185','#22D3EE','#F472B6','#A3E635'];
+const niceTicks = (lo, hi) => { if(lo===hi){lo-=1;hi+=1;} const sp=(hi-lo)*.08; return [lo-sp, hi+sp]; };
+const nf = (v, d) => { const s = Number(v).toFixed(d); return /^-0(\.0+)?$/.test(s) ? s.slice(1) : s; };
+function lineChart({series, labels, h=260, dec=2, marks}){
+  const W=760, H=h, L=58, R=14, T=12, B=26;
+  const vals = series.flatMap(s=>s.values).filter(v=>v!=null);
+  if(!vals.length) return emptyBox('표시할 데이터가 없습니다.');
+  const [lo,hi] = niceTicks(Math.min(...vals), Math.max(...vals)), n=labels.length;
+  const x = i => L + (W-L-R)*(n<2?.5:i/(n-1)), y = v => T + (H-T-B)*(1-(v-lo)/(hi-lo));
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px">`;
+  for(let k=0;k<=4;k++){ const v=lo+(hi-lo)*k/4; s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid-c)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${nf(v,dec)}</text>`; }
+  const step = Math.max(1, Math.ceil(n/8));
+  labels.forEach((l,i)=>{ if((i%step===0 && n-1-i>=step*.6)||i===n-1) s+=`<text x="${x(i)}" y="${H-7}" text-anchor="middle">${esc(l)}</text>`; });
+  if (marks) marks.forEach((m,i)=>{ if(m) s+=`<rect x="${x(i)-2}" y="${T}" width="4" height="${H-T-B}" fill="var(--crit)" opacity=".18"><title>NG ${esc(labels[i])}</title></rect>`; });
+  series.forEach((sr,si)=>{ const col=sr.color||PAL[si%PAL.length];
+    s+=`<polyline fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" points="${sr.values.map((v,i)=>v==null?'':`${x(i)},${y(v)}`).join(' ')}"/>`;
+    if(n<=70) sr.values.forEach((v,i)=>{ if(v!=null) s+=`<circle cx="${x(i)}" cy="${y(v)}" r="2.6" fill="${col}"><title>${esc(sr.name)} · ${esc(labels[i])} · ${v}</title></circle>`; }); });
+  s+='</svg>';
+  return (series.length>1||series[0].name?`<div class="legend">${series.map((x,i)=>`<span style="font-family:var(--f-mono)"><i style="background:${x.color||PAL[i%PAL.length]}"></i>${esc(x.name)}</span>`).join('')}</div>`:'') + s;
+}
+function histChart(values, {h=200, bins=16, color='#38BDF8', dec=2}={}){
+  if(!values.length) return emptyBox('표시할 데이터가 없습니다.');
+  const lo=Math.min(...values), hi=Math.max(...values), w=(hi-lo)/bins||1, cnt=Array(bins).fill(0);
+  values.forEach(v=>cnt[Math.min(bins-1,Math.floor((v-lo)/w))]++);
+  const W=760,H=h,L=44,R=10,T=10,B=26,mx=Math.max(...cnt), bw=(W-L-R)/bins;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px">`;
+  for(let k=0;k<=4;k++){ const yy=T+(H-T-B)*k/4; s+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--grid-c)"/><text x="${L-6}" y="${yy+4}" text-anchor="end">${Math.round(mx*(1-k/4))}</text>`; }
+  cnt.forEach((c,i)=>{ const hh=(H-T-B)*c/mx; s+=`<rect x="${L+i*bw+1}" y="${H-B-hh}" width="${bw-2}" height="${hh}" rx="2" fill="${color}" opacity=".85"><title>${nf(lo+i*w,dec)} ~ ${nf(lo+(i+1)*w,dec)} : ${c}</title></rect>`; if(i%4===0) s+=`<text x="${L+i*bw}" y="${H-8}">${nf(lo+i*w,dec)}</text>`; });
+  return s+'</svg>';
+}
+const quant = (a, q) => { const s=[...a].sort((x,y)=>x-y), p=(s.length-1)*q, b=Math.floor(p); return s[b]+(s[Math.min(b+1,s.length-1)]-s[b])*(p-b); };
+function boxStats(a){ const q1=quant(a,.25), q3=quant(a,.75), iq=q3-q1, lo=q1-1.5*iq, hi=q3+1.5*iq, inr=a.filter(v=>v>=lo&&v<=hi); return {min:Math.min(...inr), q1, med:quant(a,.5), q3, max:Math.max(...inr), out:a.filter(v=>v<lo||v>hi)}; }
+function boxChart(groups, {h, dec=2, horiz=false}={}){
+  if(!groups.length) return emptyBox('표시할 데이터가 없습니다.');
+  const all = groups.flatMap(g=>[g.b.min,g.b.max,...g.b.out]); const [lo,hi]=niceTicks(Math.min(...all),Math.max(...all));
+  if (horiz){
+    const rowH=26, L=210, R=16, T=8, B=24, W=760, H=h||T+B+rowH*groups.length, x=v=>L+(W-L-R)*(v-lo)/(hi-lo);
+    let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px">`;
+    for(let k=0;k<=4;k++){ const v=lo+(hi-lo)*k/4; s+=`<line y1="${T}" y2="${H-B}" x1="${x(v)}" x2="${x(v)}" stroke="var(--grid-c)"/><text x="${x(v)}" y="${H-7}" text-anchor="middle">${nf(v,dec)}</text>`; }
+    groups.forEach((g,i)=>{ const yy=T+i*rowH+rowH/2, b=g.b, c=PAL[i%PAL.length];
+      s+=`<text x="${L-8}" y="${yy+4}" text-anchor="end" style="font-family:var(--f-mono)">${esc(g.name)}</text><line x1="${x(b.min)}" x2="${x(b.max)}" y1="${yy}" y2="${yy}" stroke="${c}"/><rect x="${x(b.q1)}" y="${yy-8}" width="${Math.max(2,x(b.q3)-x(b.q1))}" height="16" fill="${c}" fill-opacity=".25" stroke="${c}"><title>${esc(g.name)} · Q1 ${nf(b.q1,dec)} · ${t('중앙값')} ${nf(b.med,dec)} · Q3 ${nf(b.q3,dec)}</title></rect><line x1="${x(b.med)}" x2="${x(b.med)}" y1="${yy-8}" y2="${yy+8}" stroke="${c}" stroke-width="2.5"/>`;
+      b.out.slice(0,12).forEach(o=>s+=`<circle cx="${x(o)}" cy="${yy}" r="2.4" fill="none" stroke="${c}"/>`); });
+    return s+'</svg>';
+  }
+  const W=760,H=h||300,L=58,R=14,T=12,B=26, n=groups.length, y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo)), cw=(W-L-R)/n;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px">`;
+  for(let k=0;k<=4;k++){ const v=lo+(hi-lo)*k/4; s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid-c)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${nf(v,dec)}</text>`; }
+  groups.forEach((g,i)=>{ const cx=L+cw*(i+.5), b=g.b, c=PAL[i%PAL.length], bw=Math.min(70,cw*.5);
+    s+=`<line x1="${cx}" x2="${cx}" y1="${y(b.min)}" y2="${y(b.max)}" stroke="${c}"/><rect x="${cx-bw/2}" y="${y(b.q3)}" width="${bw}" height="${Math.max(2,y(b.q1)-y(b.q3))}" fill="${c}" fill-opacity=".25" stroke="${c}"><title>${esc(g.name)} · Q1 ${nf(b.q1,dec)} · ${t('중앙값')} ${nf(b.med,dec)} · Q3 ${nf(b.q3,dec)}</title></rect><line x1="${cx-bw/2}" x2="${cx+bw/2}" y1="${y(b.med)}" y2="${y(b.med)}" stroke="${c}" stroke-width="2.5"/><text x="${cx}" y="${H-7}" text-anchor="middle">${esc(g.name)}</text>`;
+    b.out.slice(0,20).forEach(o=>s+=`<circle cx="${cx}" cy="${y(o)}" r="2.6" fill="none" stroke="${c}"/>`); });
+  return s+'</svg>';
+}
+function barH(items){
+  const rowH=24, L=220, R=60, T=6, W=760, H=T+rowH*items.length+6, mx=Math.max(...items.map(x=>x.v));
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px">`;
+  items.forEach((it,i)=>{ const y=T+i*rowH, w=(W-L-R)*it.v/mx;
+    s+=`<text x="${L-8}" y="${y+16}" text-anchor="end" style="font-family:var(--f-mono)">${esc(it.name)}</text><rect x="${L}" y="${y+4}" width="${w}" height="${rowH-8}" rx="3" fill="url(#bg)"><title>${esc(it.name)} ${nf(it.v,4)}</title></rect><text x="${L+w+6}" y="${y+16}">${nf(it.v,3)}</text>`; });
+  return s.replace('<svg', '<svg').replace(/(<svg[^>]*>)/, `$1<defs><linearGradient id="bg"><stop offset="0" stop-color="#0EA5E9"/><stop offset="1" stop-color="#38BDF8"/></linearGradient></defs>`)+'</svg>';
+}
+function rocChart(auc){
+  const a = 1/auc - 1, W=420, H=320, L=44, R=12, T=12, B=34, x=v=>L+(W-L-R)*v, y=v=>T+(H-T-B)*(1-v);
+  const pts = range(41,i=>{const f=(i-1)/40; return [f, Math.pow(f,a)];});
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" style="height:${H}px;max-width:560px;margin:auto">`;
+  for(let k=0;k<=4;k++){ s+=`<line x1="${L}" x2="${W-R}" y1="${y(k/4)}" y2="${y(k/4)}" stroke="var(--grid-c)"/><text x="${L-6}" y="${y(k/4)+4}" text-anchor="end">${k/4}</text><text x="${x(k/4)}" y="${H-18}" text-anchor="middle">${k/4}</text>`; }
+  s+=`<line x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}" stroke="var(--muted)" stroke-dasharray="4 4"/>`;
+  s+=`<polygon points="${x(0)},${y(0)} ${pts.map(p=>`${x(p[0])},${y(p[1])}`).join(' ')} ${x(1)},${y(0)}" fill="#38BDF8" fill-opacity=".12"/><polyline fill="none" stroke="#38BDF8" stroke-width="2.5" points="${pts.map(p=>`${x(p[0])},${y(p[1])}`).join(' ')}"/>`;
+  s+=`<text x="${x(.55)}" y="${y(.2)}" style="font-size:14px;font-weight:800;fill:var(--ink)">AUC ${nf(auc,4)}</text><text x="${(L+W-R)/2}" y="${H-3}" text-anchor="middle">${esc(t('오탐률 (FPR)'))}</text>`;
+  return s+'</svg>';
+}
+function heatmap(names, M){
+  const n=names.length, c=Math.max(16, Math.min(34, Math.floor(640/n))), L=190, T=8, W=L+c*n+10, H=T+c*n+150;
+  const col = v => v>=0 ? `rgba(56,189,248,${(.08+.92*v).toFixed(3)})` : `rgba(244,63,94,${(.08+.92*-v).toFixed(3)})`;
+  let s=`<svg class="hm" viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W*1.25}px;height:auto">`;
+  names.forEach((nm,i)=>{ s+=`<text x="${L-6}" y="${T+i*c+c/2+3}" text-anchor="end">${esc(nm)}</text><text transform="translate(${L+i*c+c/2+3},${T+n*c+6}) rotate(60)">${esc(nm)}</text>`;
+    names.forEach((nm2,j)=>{ s+=`<rect class="cell" x="${L+j*c}" y="${T+i*c}" width="${c-1}" height="${c-1}" fill="${col(M[i][j])}"><title>${esc(nm)} × ${esc(nm2)} = ${nf(M[i][j],2)}</title></rect>`; if(c>=26) s+=`<text x="${L+j*c+c/2}" y="${T+i*c+c/2+3}" text-anchor="middle" style="font-size:8px;fill:var(--ink)">${nf(M[i][j],1)}</text>`; }); });
+  return s+'</svg>' + `<div class="scale-bar">-1 <i></i> +1 <span style="margin-left:10px">${esc(t('파랑: 같은 방향 · 빨강: 반대 방향'))}</span></div>`;
+}
+
+/* ---------- 조회 조건 바 ---------- */
+function condBar(p, s, fields, opts={}){
+  const S=st(s.id), f=[];
+  if (fields.includes('equip') && p.equips) f.push(fld('설비명', sel('equip', p.equips, S.equip||p.equips[0])));
+  if (fields.includes('vis')) f.push(fld('시각화', sel('vis', [['trend','TrendChart'],['hist','Histogram'],['box','Boxplot']], S.vis||'trend')));
+  if (fields.includes('tag')) f.push(fld('태그명', sel('tag', p.tags, S.tag||p.tags[0])));
+  if (fields.includes('fi')) f.push(fld('특성중요도', sel('fi', [['imp','변수중요도'],['perm','순열중요도']], S.fi||'imp')));
+  if (fields.includes('model')) f.push(fld('모델버전', sel('model', [['','선택하세요'], ...models(p).map(m=>[m.ver,m.ver])], S.model??models(p)[0].ver)));
+  if (fields.includes('date')) f.push(fld('조회일', dinp(S.date||ds(TODAY), 'data-n="date"')));
+  if (fields.includes('range')) f.push(fld('시작일', dinp(S.start||ds(addD(TODAY, opts.back??-6)), 'data-n="start"')), fld('종료일', dinp(S.end||ds(TODAY), 'data-n="end"')));
+  return `<form class="cond" onsubmit="return false">${f.join('')}<div class="btns"><button type="button" class="btn primary" data-b="search">${icon('search','width:15px;height:15px')}${t('조회')}</button><button type="button" class="btn" data-b="reset">${t('초기화')}</button>${opts.excel?`<button type="button" class="btn good" data-b="excel">${icon('dl','width:15px;height:15px')}${t('엑셀 다운로드')}</button>`:''}</div></form>`;
+}
+function readCond(root, S){ $$('select[data-n]',root).forEach(x=>S[x.dataset.n]=x.value); const dt=$('[data-n=date]',root); if(dt){ const d=pdate(dt.value); if(!d){ toast(t('날짜를 연도-월-일 형식으로 입력해 주세요.')); return false; } S.date=dt.value; } if($('[data-n=start]',root)){ const r=readDates(root); if(!r) return false; S.start=ds(r[0]); S.end=ds(r[1]); } return true; }
+function shell(s, inner){ const el=document.createElement('div'); el.className='stack'; el.innerHTML = head(s) + inner; $('[data-help]',el).onclick=()=>help(s); return el; }
+function bind(el, s, {search, reset, excel}){
+  const S=st(s.id);
+  $('[data-b=search]',el).onclick = () => { if(readCond(el,S)) search(); };
+  $('[data-b=reset]',el).onclick = () => { STATE[s.id]={}; render(true); toast(t('조회 조건을 초기화했습니다.')); reset&&reset(); };
+  const x=$('[data-b=excel]',el); if(x) x.onclick = excel;
+  $$('select[data-n]',el).forEach(x=>x.onchange=()=>{ S[x.dataset.n]=x.value; if(s.n==='01') render(true); });
+}
+
+/* ---------- 가상 데이터: 이력 · 모델 · 데이터셋 ---------- */
+function dayStat(pk, eq, d){ const r=rng(pk+eq+ds(d)), tot=1200+Math.floor(r()*230), ng=Math.round(tot*(.018+r()*.04)), plc=Math.max(0,ng+Math.round(gauss(r)*ng*.18)), acc=+(100-Math.abs(ng-plc)/tot*100-(r()*3.2)).toFixed(1); return {'일자':ds(d), '전체예측건수':tot, 'NG 예측':ng, 'PLC NG':plc, '예측정확도':acc}; }
+function models(p){ const out=[]; for(let w=0; w<12; w++){ const end=addD(TODAY,-((TODAY.getDay()+6)%7)-1-7*w), start=addD(end,-6), r=rng(p.k+'m'+ds(end)), auc=.935+r()*.05;
+  out.push({ver:`model_xgb_${p.k.toLowerCase()}_${ds(addD(end,1)).replace(/-/g,'')}`, start, end, '시작일':ds(start), '종료일':ds(end), '데이터셋 크기':8200+Math.floor(r()*3600), AUC:+auc.toFixed(4), Accuracy:+(auc-.02-r()*.02).toFixed(4), F1:+(auc-.09-r()*.05).toFixed(4), Recall:+(auc-.11-r()*.06).toFixed(4), Precision:+(auc-.06-r()*.05).toFixed(4)}); }
+  out.forEach(m=>m['모델명']=m.ver); return out; }
+function sampleRows(p, eq, seed, n, cols){ const r=rng(seed); return range(n, i=>{ const ng=r()<.06, row={}; cols.forEach(c=>row[c]=fval(c,r,ng)); row['판정']=ng?'NG':'OK'; return row; }); }
+function rawRows(p, eq, d, n){ const r=rng(p.k+eq+ds(d)+'raw'); return range(n, i=>{ const tm=new Date(d); tm.setHours(8,0,0,0); tm.setSeconds(i*17); const row={TIMESTAMP:`${ds(tm)} ${hm(tm)}:${pad(tm.getSeconds())}`, SID:eq||p.k+'_LINE01'}; p.tags.forEach(tg=>{const b=base(tg); row[tg]=+(b.m+gauss(r)*b.s).toFixed(b.d);}); return row; }); }
+function rawSeries(p, eq, tag, a, b, n=180){ const r=rng(p.k+eq+tag+ds(a)+ds(b)), bs=base(tag), span=b.getTime()+86400000-a.getTime(); let drift=0;
+  return range(n, i=>{ drift = drift*.92 + gauss(r)*bs.s*.25; const v = bs.m + drift + gauss(r)*bs.s*.5 + (r()<.015 ? bs.s*4*(r()<.5?-1:1) : 0); const d=new Date(a.getTime()+span*(i-1)/n); return {l:`${pad(d.getMonth()+1)}/${pad(d.getDate())} ${hm(d)}`, v:+v.toFixed(bs.d+1)}; }); }
+
+/* ---------- 01 실시간 품질 예측 ---------- */
+function predCards(last){
+  const cls = last ? (last.pred==='OK'?'ok':'ng') : 'none', match = last && last.pred===last.plc;
+  return `<div class="pbig ${cls}"><span>${t('실시간 품질 예측')}</span><b>${last?last.pred:'-'}</b><small>${last?t('{t} 구간 예측',{t:hm(last.TO_TIME)}):t('최근 1시간 데이터 없음')}</small></div>
+    <div class="pcard"><span>${t('일시')}</span><b class="sm">${last?`${ds(last.TO_TIME)} ${hm(last.TO_TIME)}:00`:'-'}</b></div>
+    <div class="pcard"><span>${t('예측')}</span><b class="${last?.pred==='NG'?'vng':'vok'}">${last?.pred||'-'}</b></div>
+    <div class="pcard"><span>PLC</span><b class="${last?.plc==='NG'?'vng':'vok'}">${last?.plc||'-'}</b></div>
+    <div class="pcard"><span>${t('검증')}</span><b class="${match?'vok':'vng'}">${last?t(match?'일치':'불일치'):'-'}</b></div>`;
+}
+function strip(recs){ return `<div class="strip">${recs.map(r=>`<i class="${r.pred==='NG'?'ng':''} ${r.pred!==r.plc?'mis':''}" title="${hm(r.TO_TIME)} · ${t('예측')} ${r.pred} · PLC ${r.plc}"></i>`).join('')}</div><div class="legend" style="padding:0"><span><i style="background:var(--ok)"></i>OK</span><span><i style="background:var(--crit)"></i>NG</span><span><i style="background:transparent;outline:2px solid var(--warn)"></i>${t('예측 · PLC 불일치')}</span></div>`; }
+function scr01(s){
+  const p=s.p, S=st(s.id); S.cols ||= [p.means[p.means.length-1], p.means[0]].filter((x,i,a)=>a.indexOf(x)===i);
+  const eq = p.equips ? (S.equip||p.equips[0]) : null;
+  const el = shell(s, `${p.equips?`<form class="cond" onsubmit="return false">${fld('설비명', sel('equip', p.equips, eq))}<div class="btns"><span class="pill p-info">${icon('refresh','width:13px;height:13px')}${t('10초마다 자동 갱신')}</span><button type="button" class="btn" data-b="now">${icon('refresh','width:15px;height:15px')}${t('지금 갱신')}</button></div></form>`:`<form class="cond" onsubmit="return false"><span class="pill p-line">${t('라인 단위 예측 (설비 선택 없음)')}</span><div class="btns"><span class="pill p-info">${icon('refresh','width:13px;height:13px')}${t('10초마다 자동 갱신')}</span><button type="button" class="btn" data-b="now">${icon('refresh','width:15px;height:15px')}${t('지금 갱신')}</button></div></form>`}
+    <div class="pv" id="cards"></div>
+    ${panel('최근 1시간 판정', '<div id="strip"></div>')}
+    <section class="panel"><header><h2>${t('실시간 데이터 트렌드')}</h2><span class="meta">${t('컬럼명 (여러 개 선택)')}</span></header><div class="pb"><div class="chips" id="chips">${p.means.map(c=>`<button type="button" class="chip ${S.cols.includes(c)?'on':''}" data-c="${c}">${c}</button>`).join('')}</div><div id="trend" style="margin-top:12px"></div></div></section>`);
+  const draw = () => { const recs = lastHour(p.k, eq), last=recs[recs.length-1];
+    $('#cards',el).innerHTML = predCards(last); $('#strip',el).innerHTML = strip(recs);
+    $('#trend',el).innerHTML = S.cols.length ? lineChart({series:S.cols.map(c=>({name:c, values:recs.map(r=>r[c])})), labels:recs.map(r=>hm(r.TO_TIME)), h:300, dec:unitOf(S.cols[0])?.d??2, marks:recs.map(r=>r.pred==='NG')}) : emptyBox('컬럼명을 하나 이상 고르세요.'); };
+  draw(); timers.push(setInterval(draw, 10000));
+  const se=$('select[data-n=equip]',el); if(se) se.onchange=()=>{ S.equip=se.value; render(true); };
+  $('[data-b=now]',el).onclick=()=>{ draw(); toast(t('최신 데이터로 갱신했습니다.')); };
+  $$('#chips .chip',el).forEach(b=>b.onclick=()=>{ const c=b.dataset.c; S.cols = S.cols.includes(c) ? S.cols.filter(x=>x!==c) : [...S.cols, c].slice(-6); $$('#chips .chip',el).forEach(x=>x.classList.toggle('on',S.cols.includes(x.dataset.c))); draw(); });
+  return el;
+}
+
+/* ---------- 02 품질 예측 이력 ---------- */
+function scr02(s){
+  const p=s.p, S=st(s.id); const el=shell(s, condBar(p,s,['equip','range'],{excel:true,back:-13}) + panel('일자별 예측 이력','<div id="tb"></div>','<span id="sum"></span>'));
+  const cols=['일자','전체예측건수','NG 예측','PLC NG','예측정확도'];
+  const run = () => { const eq=p.equips?(S.equip||p.equips[0]):'LINE'; S.rows = dayList(pdate(S.start||ds(addD(TODAY,-13))), pdate(S.end||ds(TODAY))).map(d=>dayStat(p.k,eq,d)).reverse();
+    const tot=S.rows.reduce((a,r)=>a+r['전체예측건수'],0), avg=S.rows.reduce((a,r)=>a+r['예측정확도'],0)/(S.rows.length||1);
+    $('#sum',el).textContent = t('기간 예측 {n}건 · 평균 정확도 {a}%',{n:fmt(tot), a:avg.toFixed(1)});
+    table(el,'#tb',cols,S.rows,{check:true, cell:(c,v)=>c==='예측정확도'?`<span class="pill ${v>=97?'p-ok':v>=95?'p-info':'p-warn'}">${v.toFixed(1)}%</span>`:esc(typeof v==='number'?fmt(v):v)}); };
+  bind(el, s, {search:run, excel:()=>{ if(!S.rows?.length) return toast(t('저장할 데이터가 없습니다. 먼저 [조회]를 누르세요.')); csv(`${t(p.name)}_${t('품질 예측 이력')}`, cols, S.rows); }});
+  run(); return el;
+}
+
+/* ---------- 03 공정 최적값 ---------- */
+function scr03(s){
+  const p=s.p, S=st(s.id); const flds = p.optBy==='equip'?['equip']:p.optBy==='date'?['date']:[];
+  const el=shell(s, condBar(p,s,flds,{excel:true}) + `<section class="panel"><header><h2>${t('공정 최적값 조회')}</h2><span class="meta" id="meta"></span></header><div class="pb" id="opt"></div></section>
+    <div class="note">${t('목표 양품 확률 99% 이상 · 변수별 최소 · 최대 허용 범위 안에서 유전 알고리즘으로 탐색한 제안값입니다. 설비 설정 변경은 공정 담당 승인 후 반영합니다.')}</div>`);
+  const show = () => { if(!S.res){ $('#opt',el).innerHTML = emptyBox('[조회]를 누르면 최적값 계산을 시작합니다.'); $('#meta',el).textContent=''; return; }
+    $('#meta',el).textContent = t('계산 {t} · 양품 확률 {p}%',{t:S.res.at, p:S.res.prob});
+    $('#opt',el).innerHTML = `<div class="optg">${S.res.rows.map(r=>{ const dlt=r['현재값']!=null?r['최적값']-r['현재값']:null; return `<div class="opt"><span>${r['변수']}</span><b>${r['최적값']}</b>${r['현재값']!=null?`<small>${t('현재값')} ${r['현재값']} · <span class="delta ${Math.abs(dlt)>(r.s||0)*.5?'vng':'vok'}">${dlt>=0?'+':''}${nf(dlt, r.d)}</span></small>`:''}<small>${t('허용 범위')} ${r['최소']} ~ ${r['최대']}</small></div>`; }).join('')}</div>`; };
+  const run = () => busy(1400, () => { const key=p.k+(S.equip||'')+(S.date||''), r=rng(key+'opt'), recs=lastHour(p.k, p.equips?(S.equip||p.equips[0]):null), last=recs[recs.length-1];
+    S.res = {at:`${ds(TODAY)} ${hm(nowAt())}`, prob:(99+r()*.8).toFixed(2), rows:p.feats.map(f=>{ const tag=f.replace(/_(mean|std)$/,'').replace('TIME_PER_STRINGs','TIME_PER_STRING'), b=base(tag), isStd=/_std$/.test(f);
+      const opt = isStd ? +(b.s*(.15+r()*.15)).toFixed(b.d+1) : +(b.m + gauss(r)*b.s*.2).toFixed(b.d);
+      return {'변수':f, '최적값':opt, '현재값': isStd?null:last[f], '최소': isStd?0:+(b.m-b.s*2.5).toFixed(b.d), '최대': isStd?+(b.s*.8).toFixed(b.d+1):+(b.m+b.s*2.5).toFixed(b.d), d:isStd?b.d+1:b.d, s:b.s}; })};
+    show(); toast(t('공정 최적값 계산이 끝났습니다.')); });
+  bind(el, s, {search:run, excel:()=>{ if(!S.res) return toast(t('저장할 데이터가 없습니다. 먼저 [조회]를 누르세요.')); csv(`${t(p.name)}_${t('공정 최적값')}`, ['변수','최적값','현재값','최소','최대'], S.res.rows); }});
+  show(); return el;
+}
+
+/* ---------- 04 AI 성능 ---------- */
+function scr04(s){
+  const p=s.p, S=st(s.id); const el=shell(s, condBar(p,s,['range'],{back:-84}) + panel(t('AI성능 조회 ({p})',{p:t(p.name)}), '<div id="tb"></div>') + `<div class="grid2"><div id="cm"></div><div id="roc"></div></div>`);
+  const cols=['시작일','종료일','모델명','데이터셋 크기','AUC','Accuracy','F1','Recall','Precision'];
+  const pick = m => { const r=rng(m.ver+'cm'), n=m['데이터셋 크기'], ng=Math.round(n*(.05+r()*.02)), tp=Math.round(ng*m.Recall), fn=ng-tp, fp=Math.round(tp*(1/m.Precision-1)), tn=n-ng-fp;
+    $('#cm',el).innerHTML = panel('Confusion Matrix', `<div class="cm"><div></div><div class="h">${t('예측')} OK</div><div class="h">${t('예측')} NG</div><div class="h">${t('실제')} OK</div><div class="c" style="background:var(--ok-soft);color:var(--ok)"><b>${fmt(tn)}</b><small>${t('정상 판정')}</small></div><div class="c" style="background:var(--warn-soft);color:var(--warn)"><b>${fmt(fp)}</b><small>${t('잘못 잡은 NG')}</small></div><div class="h">${t('실제')} NG</div><div class="c" style="background:var(--crit-soft);color:var(--crit)"><b>${fmt(fn)}</b><small>${t('놓친 NG')}</small></div><div class="c" style="background:var(--info-soft);color:var(--info)"><b>${fmt(tp)}</b><small>${t('잡아낸 NG')}</small></div></div>`, esc(m.ver));
+    $('#roc',el).innerHTML = panel('ROC Curve', rocChart(m.AUC), esc(m.ver)); };
+  const run = () => { const a=pdate(S.start||ds(addD(TODAY,-84))), b=pdate(S.end||ds(TODAY)); S.rows = models(p).filter(m=>m.end>=a && m.start<=b);
+    table(el,'#tb',cols,S.rows,{per:6, active:0, onRow:m=>pick(m), cell:(c,v)=>typeof v==='number'&&v<1?nf(v,4):esc(typeof v==='number'?fmt(v):v), empty:'기간 안에 학습된 모델이 없습니다.'});
+    if(S.rows[0]) pick(S.rows[0]); else { $('#cm',el).innerHTML=''; $('#roc',el).innerHTML=''; } };
+  bind(el, s, {search:run}); run(); return el;
+}
+
+/* ---------- 05 특성 중요도 ---------- */
+function scr05(s){
+  const p=s.p, S=st(s.id); const el=shell(s, condBar(p,s,['fi','model']) + `<div id="out"></div>`);
+  const run = () => { const ver=S.model??models(p)[0].ver; if(!ver){ $('#out',el).innerHTML=''; return toast(t('모델을 선택해주세요.')); }
+    const r=rng(ver+'fi'), fs=p.feats.map((f,i)=>({name:f, v:Math.pow(r(),2.2)*(i%2?1:.6)})); const tot=fs.reduce((a,x)=>a+x.v,0); fs.forEach(x=>x.v/=tot); fs.sort((a,b)=>b.v-a.v);
+    if((S.fi||'imp')==='imp') $('#out',el).innerHTML = panel('변수중요도', barH(fs), esc(ver));
+    else { const top=fs.slice(0,15).reverse(); $('#out',el).innerHTML = panel('순열중요도', boxChart(top.map(x=>({name:x.name, b:boxStats(range(30,()=>x.v*.6+gauss(r)*x.v*.25))})),{horiz:true, dec:3}) + `<div class="note">${t('변수 값을 섞었을 때 모델 성능(정확도)이 떨어진 정도입니다. 오른쪽일수록 중요한 변수입니다.')}</div>`, esc(ver)); } };
+  bind(el, s, {search:run}); run(); return el;
+}
+
+/* ---------- 06 학습 데이터셋 · 07 원본 데이터셋 ---------- */
+function scrDataset(s, raw){
+  const p=s.p, S=st(s.id); const eqs=p.equips||[null];
+  const el=shell(s, condBar(p,s,['range'],{excel:true, back:raw?-6:-41}) + panel(raw?'일자별 원본 데이터':'학습 구간', '<div id="top"></div>') + panel('데이터 상세', '<div id="sub"></div>', `<span id="subm"></span>`));
+  const topCols = raw ? ['일자','총 데이터 수','OK','NG'] : ['시작일','종료일','총 데이터 수','OK','NG'];
+  let subCols = [], subRows = [], subSel = null;
+  const showSub = (row) => { if(!row){ subRows=[]; $('#sub',el).innerHTML=emptyBox('위 표에서 행을 누르면 상세 데이터가 나옵니다.'); $('#subm',el).textContent=''; return; }
+    if(raw){ subCols=['TIMESTAMP','SID',...p.tags]; subRows = eqs.flatMap(e=>rawRows(p,e,pdate(row['일자']),p.equips?6:30)); }
+    else { subCols=['TO_TIME',...(p.equips?['EQUIPNUM']:[]),...p.feats,'판정']; subRows = sampleRows(p,null,p.k+row['시작일'],48,p.feats).map((x,i)=>({...x, TO_TIME:`${row['시작일']} ${pad(8+Math.floor(i/6))}:${pad(i%6*10)}`, ...(p.equips?{EQUIPNUM:p.equips[i%p.equips.length]}:{})})); }
+    $('#subm',el).textContent = raw ? row['일자'] : `${row['시작일']} ~ ${row['종료일']}`;
+    subSel = table(el,'#sub',subCols,subRows,{check:true, per:10, short:true, cell:(c,v)=>c==='판정'?`<span class="pill ${v==='NG'?'p-crit':'p-ok'}">${v}</span>`:esc(typeof v==='number'?v:v)}).sel; };
+  const run = () => { const a=pdate(S.start||ds(addD(TODAY,raw?-6:-41))), b=pdate(S.end||ds(TODAY));
+    if(raw) S.rows = dayList(a,b).reverse().map(d=>{ const r=rng(p.k+'raw'+ds(d)), tot=(p.equips?p.equips.length:1)*(4800+Math.floor(r()*600)), ng=Math.round(tot*(.02+r()*.03)); return {'일자':ds(d),'총 데이터 수':tot,'OK':tot-ng,'NG':ng}; });
+    else { S.rows=[]; for(let d=addD(b,-((b.getDay()+6)%7)); d>=addD(a,-6); d=addD(d,-7)){ const e=addD(d,6), r=rng(p.k+'ds'+ds(d)), tot=7800+Math.floor(r()*2600), ng=Math.round(tot*(.04+r()*.03)); S.rows.push({'시작일':ds(d),'종료일':ds(e>TODAY?TODAY:e),'총 데이터 수':tot,'OK':tot-ng,'NG':ng}); } }
+    table(el,'#top',topCols,S.rows,{per:6, active:0, onRow:row=>showSub(row), short:true}); showSub(S.rows[0]); };
+  bind(el, s, {search:run, excel:()=>{ if(!subRows.length) return toast(t('저장할 데이터가 없습니다. 먼저 [조회]를 누르세요.')); const rows = subSel&&subSel.size ? subRows.filter((_,i)=>subSel.has(i)) : subRows; csv(`${t(p.name)}_${t(s.name)}`, subCols, rows); }});
+  run(); return el;
+}
+
+/* ---------- 08 데이터 시각화 · 09 원본 데이터 시각화 ---------- */
+function visual(kind, pts, dec, {h=170, name=''}={}){
+  if(kind==='hist') return histChart(pts.map(x=>x.v), {h, dec});
+  if(kind==='box') return boxChart([{name, b:boxStats(pts.map(x=>x.v))}], {h:h+40, dec});
+  return lineChart({series:[{name:'', values:pts.map(x=>x.v)}], labels:pts.map(x=>x.l), h, dec});
+}
+function scr08(s){
+  const p=s.p, S=st(s.id); const el=shell(s, condBar(p,s,['equip','vis','range'],{back:-6}) + `<div id="out"></div>`);
+  const run = () => busy(500, () => { const a=pdate(S.start||ds(addD(TODAY,-6))), b=pdate(S.end||ds(TODAY)), eq=p.equips?(S.equip||p.equips[0]):'LINE', kind=S.vis||'trend';
+    $('#out',el).innerHTML = panel(t('{v} · {e}',{v:{trend:'TrendChart',hist:'Histogram',box:'Boxplot'}[kind], e:p.equips?eq:t('라인')}), `<div class="smalls">${p.means.map(m=>{ const tag=m.replace(/_mean$/,'').replace('TIME_PER_STRINGs','TIME_PER_STRING'), bs=base(tag); return `<div class="mini"><h3>${m}</h3>${visual(kind, rawSeries(p,eq,tag,a,b,60).map(x=>({l:x.l,v:+x.v.toFixed(bs.d)})), bs.d, {name:m})}</div>`; }).join('')}</div>`, `${ds(a)} ~ ${ds(b)}`); });
+  bind(el, s, {search:run}); run(); return el;
+}
+function scr09(s){
+  const p=s.p, S=st(s.id); const el=shell(s, condBar(p,s,['vis','equip','tag','range'],{back:-1}) + `<div id="out"></div>`);
+  const run = () => busy(500, () => { const a=pdate(S.start||ds(addD(TODAY,-1))), b=pdate(S.end||ds(TODAY)), eq=p.equips?(S.equip||p.equips[0]):'LINE', tag=S.tag||p.tags[0], kind=S.vis||'trend', bs=base(tag), pts=rawSeries(p,eq,tag,a,b,240);
+    const vs=pts.map(x=>x.v), avg=vs.reduce((x,y)=>x+y,0)/vs.length, sd=Math.sqrt(vs.reduce((x,y)=>x+(y-avg)**2,0)/vs.length);
+    $('#out',el).innerHTML = panel(tag, `<div class="kvs" style="margin-bottom:12px"><div><span>${t('평균')}</span><b>${nf(avg,bs.d+1)}</b></div><div><span>${t('표준편차')}</span><b>${nf(sd,bs.d+2)}</b></div><div><span>${t('최소')}</span><b>${nf(Math.min(...vs),bs.d+1)}</b></div><div><span>${t('최대')}</span><b>${nf(Math.max(...vs),bs.d+1)}</b></div><div><span>${t('데이터 수')}</span><b>${fmt(vs.length)}</b></div></div>${visual(kind, pts, bs.d+1, {h:380, name:tag})}`, `${p.equips?eq:t('라인')} · ${ds(a)} ~ ${ds(b)}`); });
+  bind(el, s, {search:run}); run(); return el;
+}
+
+/* ---------- 10 상관관계 히트맵 ---------- */
+function scr10(s){
+  const p=s.p, S=st(s.id); const el=shell(s, condBar(p,s,['equip','range'],{back:-6}) + `<div id="out"></div>`);
+  const run = () => busy(500, () => { const eq=p.equips?(S.equip||p.equips[0]):'LINE', r=rng(p.k+eq+(S.start||'')+(S.end||'')), names=p.means, n=names.length, fam=x=>x.replace(/\d+/g,'#');
+    const M = range(n,()=>Array(n).fill(0)); for(let i=0;i<n;i++) for(let j=i;j<n;j++){ const v = i===j?1 : fam(names[i])===fam(names[j]) ? .45+r()*.5 : (r()-.5)*.7; M[i][j]=M[j][i]=+v.toFixed(2); }
+    $('#out',el).innerHTML = panel(t('변수 간 상관계수'), heatmap(names, M), `${p.equips?eq:t('라인')} · ${S.start||ds(addD(TODAY,-6))} ~ ${S.end||ds(TODAY)}`); });
+  bind(el, s, {search:run}); run(); return el;
+}
+const SCREEN_FN = {'01':scr01,'02':scr02,'03':scr03,'04':scr04,'05':scr05,'06':s=>scrDataset(s,false),'07':s=>scrDataset(s,true),'08':scr08,'09':scr09,'10':scr10};
+
+/* ---------- 통합 대시보드 ---------- */
+function dashboard(){
+  const S=st('DSH-01'); PROC.forEach(p=>{ if(p.equips) S[p.k] ||= p.equips[0]; });
+  const el=document.createElement('div'); el.className='stack';
+  el.innerHTML = `<section class="hero"><span class="eyebrow">${icon('ok','width:13px;height:13px')}${t('{d} 기준 · 1분마다 갱신',{d:ds(TODAY)})}</span><h1>${t('오늘의 품질 예측 현황')}</h1><p>${t('태빙 · 오토솔더링 · 오토버싱 · 라미네이션 4개 공정의 설비 데이터를 AI가 1분 구간마다 판정합니다.')}</p><div class="hstats" id="hs"></div></section>
+    <div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" data-b="now">${icon('refresh','width:15px;height:15px')}${t('지금 갱신')}</button><button type="button" class="btn" data-help="1">${icon('help')}${t('화면 도움말')}</button></div>
+    <div class="dash4" id="d4"></div>`;
+  const draw = () => {
+    let tot=0, ng=0, mis=0;
+    $('#d4',el).innerHTML = PROC.map(p => { const eq=p.equips?S[p.k]:null, recs=lastHour(p.k,eq), last=recs[recs.length-1], match=last.pred===last.plc;
+      recs.forEach(r=>{tot++; if(r.pred==='NG')ng++; if(r.pred!==r.plc)mis++;});
+      const cols=p.means.slice(0,4);
+      return `<div class="dpanel"><div class="dh"><h2><a href="#" data-open="${p.k}-01" style="color:inherit;text-decoration:none">${icon(p.icon,'width:15px;height:15px;vertical-align:-2px')} ${t(p.name)}</a></h2>${p.equips?sel(p.k, p.equips, eq, 'data-d="1" style="height:30px;min-width:120px"'):`<span class="pill p-line">${t('라인')}</span>`}</div>
+        <div class="pbig ${last.pred==='OK'?'ok':'ng'}"><span>${t('실시간 예측')}</span><b>${last.pred}</b></div>
+        <div class="when"><span>${t('일시')}</span><b>${ds(last.TO_TIME)} ${hm(last.TO_TIME)}:00</b></div>
+        <div class="trio"><div><span>${t('예측')}</span><b class="${last.pred==='NG'?'vng':'vok'}">${last.pred}</b></div><div><span>PLC</span><b class="${last.plc==='NG'?'vng':'vok'}">${last.plc}</b></div><div><span>${t('검증')}</span><b class="${match?'vok':'vng'}" style="font-size:14px">${t(match?'일치':'불일치')}</b></div></div>
+        ${strip(recs.slice(-30)).split('<div class="legend"')[0]}
+        ${lineChart({series:cols.map(c=>({name:c, values:recs.map(r=>r[c])})), labels:recs.map(r=>hm(r.TO_TIME)), h:170, dec:unitOf(cols[0]).d})}</div>`; }).join('');
+    $('#hs',el).innerHTML = `<span class="hstat"><i style="--c:#38BDF8"></i>${t('최근 1시간 예측')} <b>${fmt(tot)}</b></span><span class="hstat"><i style="--c:#FB7185"></i>${t('NG 예측')} <b>${ng}</b></span><span class="hstat"><i style="--c:#34D399"></i>${t('PLC 일치율')} <b>${((1-mis/tot)*100).toFixed(1)}%</b></span><span class="hstat"><i style="--c:#FBBF24"></i>${t('연결 설비')} <b>13</b></span>`;
+    $$('select[data-d]',el).forEach(x=>x.onchange=()=>{ S[x.dataset.n]=x.value; draw(); });
+    $$('[data-open]',el).forEach(a=>a.onclick=e=>{ e.preventDefault(); openScreen(a.dataset.open); });
+  };
+  draw(); timers.push(setInterval(draw, 60000));
+  $('[data-b=now]',el).onclick=()=>{ draw(); toast(t('최신 데이터로 갱신했습니다.')); };
+  $('[data-help]',el).onclick=()=>help(DASH);
+  return el;
+}
+
+/* ---------- 알림 ---------- */
+function notices(){
+  const items = PROC.flatMap(p => (p.equips||[null]).slice(0,3).map(eq => { const recs=lastHour(p.k,eq); const ngs=recs.filter(r=>r.pred==='NG'); return ngs.length?{p, eq, n:ngs.length, last:ngs[ngs.length-1]}:null; })).filter(Boolean).slice(0,8);
+  const md = modal(t('NG 예측 알림'), items.length ? `<div class="alerts">${items.map((x,i)=>`<div class="alert" data-i="${i}" style="--sc:var(--crit)"><span class="sev"></span><div><b>${t('{p} {e} NG 예측 {n}건',{p:t(x.p.name), e:x.eq||t('라인'), n:x.n})}</b><p>${t('최근 1시간 · 마지막 {t}',{t:hm(x.last.TO_TIME)})}</p></div><span class="pill p-crit">NG</span></div>`).join('')}</div>` : emptyBox('최근 1시간 NG 예측이 없습니다.'), `<button type="button" class="btn primary" data-close="1">${t('확인')}</button>`);
+  $$('.alert',md.el).forEach(a=>a.onclick=()=>{ const x=items[+a.dataset.i]; md.close(); if(x.eq) st(`${x.p.k}-01`).equip=x.eq; openScreen(`${x.p.k}-01`); });
+}
+
+/* ---------- 로그인 ---------- */
+function drawLogin(){
+  $('#login').innerHTML = `<div class="box"><div class="lang-top"><div class="langsw">${icon('globe')}${LANGS.map(l=>`<button type="button" class="${l.id===LANG?'on':''}" data-l="${l.id}" title="${l.label}">${l.short}</button>`).join('')}</div></div>
+    <div class="brand" style="padding:0"><span class="logo">${icon('panel')}</span><span class="bt"><b>PV-AIQ</b><span style="color:var(--muted)">AI Quality Prediction</span></span></div>
+    <h1>${t('태양광 모듈 AI 품질예측')}</h1><p class="sub">${t('설비 데이터로 품질을 먼저 예측하고, 양품 조건을 제안합니다.')}</p>
+    <div id="lf"><label class="fld">${t('아이디')}<input class="input" id="lid" value="admin" autocomplete="username"></label>
+    <label class="fld" style="margin-top:12px">${t('비밀번호')}<input class="input" id="lpw" type="password" value="aiq1234" autocomplete="current-password"></label>
+    <button class="btn primary" type="button" id="lgo">${t('로그인')}</button></div>
+    <div class="foot">${t('시연용 목업입니다. 화면의 데이터는 모두 가상 데이터입니다.')}</div></div>`;
+  $$('[data-l]',$('#login')).forEach(b=>b.onclick=()=>setLang(b.dataset.l));
+  const go = () => { if(!$('#lid').value.trim()||!$('#lpw').value) return toast(t('아이디와 비밀번호를 입력하세요.')); boot(); };
+  $('#lgo').onclick = go; $$('#lid,#lpw').forEach(x=>x.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); go(); } });
+}
+function boot(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); render(); }
+document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#mask').classList.contains('hidden')){ $('#mask').classList.add('hidden'); $('#mask').innerHTML=''; } });
+drawLogin();
+if (location.hash==='#auto') boot();
+
+</script>
+</body>
+</html>
